@@ -201,6 +201,113 @@ html, body {
     margin-left: auto;
 }
 
+/* === DOCK RIGHT (Me / About) === */
+.dock-right {
+    margin-left: auto;
+    gap: 6px;
+}
+
+/* When presets-section already has margin-left: auto, dock-right should not */
+.presets-section ~ .dock-right {
+    margin-left: 0;
+}
+
+/* === DROPDOWN === */
+.dock-dropdown {
+    position: relative;
+}
+
+.dock-dropdown-content {
+    display: none;
+    position: absolute;
+    bottom: calc(100% + 8px);
+    right: 0;
+    min-width: 180px;
+    background: rgba(18, 18, 18, 0.96);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    padding: 6px 0;
+    z-index: 200;
+    box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.5);
+}
+
+.dock-dropdown:hover .dock-dropdown-content {
+    display: block;
+}
+
+.dock-dropdown-content a {
+    display: block;
+    padding: 8px 16px;
+    color: #c0c0c0;
+    text-decoration: none;
+    font-size: 12px;
+    transition: all 0.15s;
+    font-family: inherit;
+}
+
+.dock-dropdown-content a:hover {
+    color: #00CED1;
+    background: rgba(0, 206, 209, 0.08);
+}
+
+/* Me pill */
+.me-pill {
+    border-color: rgba(0, 255, 136, 0.3);
+}
+
+.me-pill:hover {
+    border-color: rgba(0, 255, 136, 0.6);
+    color: #00FF88;
+    box-shadow: 0 0 8px rgba(0, 255, 136, 0.15);
+}
+
+/* About pill */
+.about-pill {
+    border-color: rgba(255, 215, 0, 0.3);
+}
+
+.about-pill:hover {
+    border-color: rgba(255, 215, 0, 0.6);
+    color: #FFD700;
+    box-shadow: 0 0 8px rgba(255, 215, 0, 0.15);
+}
+
+/* About content (wider) */
+.about-content {
+    min-width: 280px;
+    padding: 0;
+}
+
+.about-text {
+    padding: 14px 18px;
+    font-size: 11px;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.65);
+}
+
+.about-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #00CED1;
+    margin-bottom: 8px;
+    letter-spacing: 1px;
+}
+
+.about-features {
+    margin-top: 8px;
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.about-hint {
+    margin-top: 10px;
+    font-size: 10px;
+    color: rgba(0, 206, 209, 0.5);
+    font-style: italic;
+}
+
 /* Scrollbar */
 .dock::-webkit-scrollbar {
     height: 2px;
@@ -231,6 +338,10 @@ html, body {
         margin-left: 0;
     }
 
+    .dock-right {
+        margin-left: 0;
+    }
+
     .dock-pill {
         padding: 4px 8px;
         font-size: 10px;
@@ -238,5 +349,9 @@ html, body {
 
     .vol-slider {
         width: 50px;
+    }
+
+    .about-content {
+        min-width: 220px;
     }
 }

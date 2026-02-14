@@ -35,6 +35,8 @@ pub fn Dock(
 
     let preset_names: Vec<String> = presets.iter().map(|p| p.name.clone()).collect();
 
+    let (show_about, set_show_about) = signal(false);
+
     view! {
         <div class="dock">
             <div class="dock-section">
@@ -132,6 +134,41 @@ pub fn Dock(
                         }
                     })
                     .collect::<Vec<_>>()}
+            </div>
+
+            <div class="dock-section dock-right">
+                // "Me" dropdown
+                <div class="dock-dropdown">
+                    <button class="dock-pill me-pill">"Me"</button>
+                    <div class="dock-dropdown-content">
+                        <a href="https://undivisible.dev" target="_blank" rel="noopener">"undivisible.dev"</a>
+                        <a href="https://atechnology.company" target="_blank" rel="noopener">"atechnology.company"</a>
+                    </div>
+                </div>
+
+                // "About" dropdown
+                <div class="dock-dropdown">
+                    <button
+                        class="dock-pill about-pill"
+                        on:click=move |_| set_show_about.set(!show_about.get_untracked())
+                    >
+                        "About"
+                    </button>
+                    <div class="dock-dropdown-content about-content">
+                        <div class="about-text">
+                            <p class="about-title">"Bublik"</p>
+                            <p>"A frequency terrain audio generator built with Leptos + Rust WASM. \
+                                All audio synthesis runs natively in the browser via the Web Audio API \u{2014} \
+                                no third-party audio libraries."</p>
+                            <p class="about-features">
+                                "Brown/pink/white noise \u{00B7} Theta/alpha/delta waves \u{00B7} \
+                                 Binaural beats \u{00B7} Harmonic series \u{00B7} Rain textures \u{00B7} \
+                                 Biquad filters \u{00B7} LFO modulation"
+                            </p>
+                            <p class="about-hint">"Drag orbs to shape sound. Space = play/pause. Scroll = volume."</p>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     }
