@@ -1,4 +1,5 @@
 # Bublik
+*"I got bored one day, and I put everything on a bagel. Everything. All my hopes and dreams, my old report cards, every breed of dog, every last personal ad on Craigslist. Sesame. Poppy seed. Salt. And it collapsed in on itself. 'Cause, you see, when you really put everything on a bagel, it becomes this... the truth."*
 
 A frequency terrain audio generator built with Leptos + Rust WASM. All audio synthesis runs natively in the browser via the Web Audio API — no third-party audio libraries.
 
