@@ -68,18 +68,6 @@ trunk build --release
 
 Output goes to `dist/`.
 
-## Deploying to GitHub Pages
-
-This repo includes a GitHub Actions workflow (`.github/workflows/deploy.yml`) that automatically builds and deploys to GitHub Pages on every push to `main`.
-
-To enable:
-
-1. Go to your repo's **Settings > Pages**
-2. Set **Source** to **GitHub Actions**
-3. Push to `main` — the action will build the WASM bundle and deploy it
-
-The site will be available at `https://<username>.github.io/bublik/`.
-
 ## Tech stack
 
 - **Leptos 0.7** — Rust WASM framework (CSR only)
