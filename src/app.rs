@@ -2,7 +2,7 @@ use leptos::prelude::*;
 use leptos::reactive::owner::LocalStorage;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
-use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement, MouseEvent, TouchEvent};
+use web_sys::{HtmlCanvasElement, MouseEvent, TouchEvent};
 
 use crate::audio::binaural::BinauralBeat;
 use crate::audio::context::AudioEngine;
@@ -12,7 +12,7 @@ use crate::state::persistence;
 use crate::state::presets::{built_in_presets, Preset, PresetBinaural, PresetSource};
 use crate::ui::dock::{Dock, DockAction};
 use crate::ui::orb::OrbData;
-use crate::ui::terrain::draw_terrain;
+use crate::ui::three_interop;
 
 use filters::x_to_cutoff;
 
@@ -44,6 +44,7 @@ pub fn App() -> impl IntoView {
 
     let next_id = StoredValue::new_local(0usize);
     let (anim_time, set_anim_time) = signal(0.0f64);
+    let scene_initialized = StoredValue::new_local(false);
 
     let canvas_ref: NodeRef<leptos::html::Canvas> = NodeRef::new();
 
@@ -70,17 +71,13 @@ pub fn App() -> impl IntoView {
         })
     };
 
-    // Use clientWidth/clientHeight for 1:1 pixel mapping
-    let resize_canvas = move || {
-        if let Some(canvas) = get_canvas_el() {
-            let el: &web_sys::HtmlElement = canvas.as_ref();
-            let w = el.client_width() as u32;
-            let h = el.client_height() as u32;
-            if w > 0 && h > 0 {
-                canvas.set_width(w);
-                canvas.set_height(h);
-            }
-        }
+    let get_canvas_size = move || -> (f64, f64) {
+        get_canvas_el()
+            .map(|c| {
+                let el: &web_sys::HtmlElement = c.as_ref();
+                (el.client_width() as f64, el.client_height() as f64)
+            })
+            .unwrap_or((800.0, 500.0))
     };
 
     // Save current session to localStorage
@@ -136,10 +133,25 @@ pub fn App() -> impl IntoView {
         let _ = persistence::save_session(&session);
     };
 
-    // Animation loop (interval-based ~30fps)
+    // Initialize Three.js scene and start animation loop
     Effect::new(move |_| {
-        resize_canvas();
+        if let Some(canvas) = get_canvas_el() {
+            if !scene_initialized.get_value() {
+                // Set canvas size to match element
+                let el: &web_sys::HtmlElement = canvas.as_ref();
+                let w = el.client_width() as u32;
+                let h = el.client_height() as u32;
+                if w > 0 && h > 0 {
+                    canvas.set_width(w);
+                    canvas.set_height(h);
+                }
 
+                three_interop::init_scene(&canvas);
+                scene_initialized.set_value(true);
+            }
+        }
+
+        // Start animation interval
         let interval_cb = Closure::wrap(Box::new(move || {
             let time = web_sys::window()
                 .and_then(|w| w.performance())
@@ -157,32 +169,33 @@ pub fn App() -> impl IntoView {
         interval_cb.forget();
     });
 
-    // Render canvas each frame
+    // Render Three.js scene each frame
     Effect::new(move |_| {
         let time = anim_time.get();
         let current_orbs = orbs.get();
-        let drag = dragging_id.get();
 
-        if let Some(canvas) = get_canvas_el() {
-            if let Ok(Some(ctx_obj)) = canvas.get_context("2d") {
-                if let Ok(ctx) = ctx_obj.dyn_into::<CanvasRenderingContext2d>() {
-                    draw_terrain(
-                        &ctx,
-                        canvas.width() as f64,
-                        canvas.height() as f64,
-                        &current_orbs,
-                        time,
-                        drag,
-                    );
-                }
-            }
+        // Sync all orbs to Three.js
+        for orb in current_orbs.iter() {
+            three_interop::sync_orb(orb);
         }
+
+        // Render the frame
+        three_interop::render(time);
     });
 
     // Window resize handler
     Effect::new(move |_| {
         let cb = Closure::wrap(Box::new(move || {
-            resize_canvas();
+            if let Some(canvas) = get_canvas_el() {
+                let el: &web_sys::HtmlElement = canvas.as_ref();
+                let w = el.client_width() as u32;
+                let h = el.client_height() as u32;
+                if w > 0 && h > 0 {
+                    canvas.set_width(w);
+                    canvas.set_height(h);
+                    three_interop::resize(w as f64, h as f64);
+                }
+            }
         }) as Box<dyn FnMut()>);
         if let Some(window) = web_sys::window() {
             window.set_onresize(Some(cb.as_ref().unchecked_ref()));
@@ -240,12 +253,6 @@ pub fn App() -> impl IntoView {
 
         engine.with_value(|cell| {
             if let Some(ref mut eng) = *cell.borrow_mut() {
-                let canvas_w = get_canvas_el().map(|c| c.width() as f32).unwrap_or(800.0);
-                let canvas_h = get_canvas_el().map(|c| c.height() as f32).unwrap_or(500.0);
-
-                let px = x * canvas_w;
-                let py = (1.0 - y) * canvas_h;
-
                 if let Ok(source) =
                     SoundSource::new(eng.context(), kind, eng.master_gain_node(), x, y)
                 {
@@ -261,8 +268,12 @@ pub fn App() -> impl IntoView {
                         eng.add_source(source);
                     }
 
+                    let orb = OrbData::new(id, kind, 0.0, 0.0, x, y);
+                    // Add 3D orb to Three.js scene
+                    three_interop::add_orb(id, &orb.color, x, y, orb.radius);
+
                     set_orbs.update(|o| {
-                        o.push(OrbData::new(id, kind, px as f64, py as f64, x, y));
+                        o.push(orb);
                     });
                 }
             }
@@ -276,6 +287,7 @@ pub fn App() -> impl IntoView {
                 let current_orbs = orbs.get_untracked();
                 if let Some(idx) = current_orbs.iter().position(|o| o.id == id) {
                     eng.remove_source(idx);
+                    three_interop::remove_orb(id);
                     set_orbs.update(|o| {
                         o.remove(idx);
                     });
@@ -376,6 +388,7 @@ pub fn App() -> impl IntoView {
             }
             *cell.borrow_mut() = None;
         });
+        three_interop::remove_all_orbs();
         set_orbs.set(Vec::new());
         next_id.set_value(0);
         set_binaural_active.set(false);
@@ -467,17 +480,22 @@ pub fn App() -> impl IntoView {
             save_session();
         }
         DockAction::RemoveLast => {
-            engine.with_value(|cell| {
-                if let Some(ref mut eng) = *cell.borrow_mut() {
-                    let len = eng.sources().len();
-                    if len > 0 {
-                        eng.remove_source(len - 1);
-                        set_orbs.update(|o| {
-                            o.pop();
-                        });
+            let current_orbs = orbs.get_untracked();
+            if let Some(last_orb) = current_orbs.last() {
+                let last_id = last_orb.id;
+                engine.with_value(|cell| {
+                    if let Some(ref mut eng) = *cell.borrow_mut() {
+                        let len = eng.sources().len();
+                        if len > 0 {
+                            eng.remove_source(len - 1);
+                            three_interop::remove_orb(last_id);
+                            set_orbs.update(|o| {
+                                o.pop();
+                            });
+                        }
                     }
-                }
-            });
+                });
+            }
             set_active_preset.set(None);
             save_session();
         }
@@ -527,21 +545,20 @@ pub fn App() -> impl IntoView {
         save_session();
     });
 
-    // Mouse handlers for dragging orbs
+    // Mouse handlers for dragging orbs — use Three.js raycasting
     let on_pointer_down = move |ev: MouseEvent| {
         if let Some(canvas) = get_canvas_el() {
             let rect = canvas.get_bounding_client_rect();
             let px = ev.client_x() as f64 - rect.left();
             let py = ev.client_y() as f64 - rect.top();
+            let (w, h) = get_canvas_size();
 
-            let current_orbs = orbs.get_untracked();
-            for orb in current_orbs.iter().rev() {
-                if orb.contains(px, py) {
-                    set_dragging_id.set(Some(orb.id));
-                    set_hovered_orb_id.set(None);
-                    set_is_hovering_menu.set(false);
-                    return;
-                }
+            let hit_id = three_interop::get_orb_at_point(px, py, w, h);
+            if hit_id >= 0 {
+                set_dragging_id.set(Some(hit_id as usize));
+                set_hovered_orb_id.set(None);
+                set_is_hovering_menu.set(false);
+                return;
             }
             // Clicked on empty canvas — dismiss any open menu
             set_hovered_orb_id.set(None);
@@ -554,17 +571,15 @@ pub fn App() -> impl IntoView {
             let rect = canvas.get_bounding_client_rect();
             let px = ev.client_x() as f64 - rect.left();
             let py = ev.client_y() as f64 - rect.top();
-            let w = canvas.width() as f64;
-            let h = canvas.height() as f64;
+            let (w, h) = get_canvas_size();
 
             if let Some(drag_id) = dragging_id.get_untracked() {
+                // Map screen coords to normalized coords
                 let norm_x = (px / w) as f32;
                 let norm_y = (1.0 - py / h) as f32;
 
                 set_orbs.update(|orbs_vec| {
                     if let Some(orb) = orbs_vec.iter_mut().find(|o| o.id == drag_id) {
-                        orb.x = px.clamp(0.0, w);
-                        orb.y = py.clamp(0.0, h);
                         orb.norm_x = norm_x.clamp(0.0, 1.0);
                         orb.norm_y = norm_y.clamp(0.0, 1.0);
                         orb.gain = norm_y.clamp(0.0, 1.0);
@@ -582,11 +597,9 @@ pub fn App() -> impl IntoView {
                             if let Some(source) = eng.sources_mut().get_mut(idx) {
                                 source.set_gain(norm_y.clamp(0.0, 1.0));
                                 if current_orbs[idx].kind.is_noise() {
-                                    // For noise: x-axis controls filter cutoff
                                     let cutoff = x_to_cutoff(norm_x.clamp(0.0, 1.0));
                                     source.set_filter_cutoff(cutoff);
                                 } else {
-                                    // For oscillators: x-axis controls frequency
                                     source.set_frequency(norm_x * 1000.0);
                                 }
                             }
@@ -596,28 +609,22 @@ pub fn App() -> impl IntoView {
 
                 set_active_preset.set(None);
             } else {
-                // Hover logic
-                let current_orbs = orbs.get_untracked();
-                let mut found = None;
-                for orb in current_orbs.iter().rev() {
-                    if orb.contains(px, py) {
-                        found = Some(orb.id);
-                        break;
-                    }
-                }
+                // Hover logic — use raycasting
+                let hit_id = three_interop::get_orb_at_point(px, py, w, h);
 
-                if found.is_some() {
-                    set_hovered_orb_id.set(found);
+                if hit_id >= 0 {
+                    set_hovered_orb_id.set(Some(hit_id as usize));
                 } else if !is_hovering_menu.get_untracked() {
-                    // Keep hover alive if mouse is in approach zone above the hovered orb
-                    // (bridging the gap between orb and menu buttons)
+                    // Check approach zone using screen-projected positions
                     let in_approach = hovered_orb_id
                         .get_untracked()
-                        .and_then(|hid| current_orbs.iter().find(|o| o.id == hid))
-                        .is_some_and(|orb| {
-                            let dx = (px - orb.x).abs();
-                            let dy = orb.y - py; // positive = above orb
-                            dx < 100.0 && dy > 0.0 && dy < orb.radius as f64 + 100.0
+                        .and_then(|hid| {
+                            three_interop::get_screen_pos(hid, w, h)
+                        })
+                        .is_some_and(|(ox, oy, or)| {
+                            let dx = (px - ox).abs();
+                            let dy = oy - py; // positive = above orb
+                            dx < 100.0 && dy > 0.0 && dy < or + 100.0
                         });
                     if !in_approach {
                         set_hovered_orb_id.set(None);
@@ -642,14 +649,13 @@ pub fn App() -> impl IntoView {
                 let rect = canvas.get_bounding_client_rect();
                 let px = touch.client_x() as f64 - rect.left();
                 let py = touch.client_y() as f64 - rect.top();
+                let (w, h) = get_canvas_size();
 
-                let current_orbs = orbs.get_untracked();
-                for orb in current_orbs.iter().rev() {
-                    if orb.contains(px, py) {
-                        set_dragging_id.set(Some(orb.id));
-                        set_hovered_orb_id.set(None);
-                        return;
-                    }
+                let hit_id = three_interop::get_orb_at_point(px, py, w, h);
+                if hit_id >= 0 {
+                    set_dragging_id.set(Some(hit_id as usize));
+                    set_hovered_orb_id.set(None);
+                    return;
                 }
             }
         }
@@ -663,16 +669,13 @@ pub fn App() -> impl IntoView {
                     let rect = canvas.get_bounding_client_rect();
                     let px = touch.client_x() as f64 - rect.left();
                     let py = touch.client_y() as f64 - rect.top();
-                    let w = canvas.width() as f64;
-                    let h = canvas.height() as f64;
+                    let (w, h) = get_canvas_size();
 
                     let norm_x = (px / w) as f32;
                     let norm_y = (1.0 - py / h) as f32;
 
                     set_orbs.update(|orbs_vec| {
                         if let Some(orb) = orbs_vec.iter_mut().find(|o| o.id == drag_id) {
-                            orb.x = px.clamp(0.0, w);
-                            orb.y = py.clamp(0.0, h);
                             orb.norm_x = norm_x.clamp(0.0, 1.0);
                             orb.norm_y = norm_y.clamp(0.0, 1.0);
                             orb.gain = norm_y.clamp(0.0, 1.0);
@@ -733,90 +736,93 @@ pub fn App() -> impl IntoView {
                 on:touchend=on_touch_end
             />
 
-            // Orb Hover Menu
+            // Orb Hover Menu — positioned using Three.js screen projection
             {move || {
+                let (w, h) = get_canvas_size();
                 hovered_orb_id.get().and_then(|id| {
-                    orbs.get().iter().find(|o| o.id == id).map(|orb| {
-                        let menu_top = orb.y - orb.radius - 15.0;
-                        let left = orb.x;
-                        let is_binaural = orb.binaural_active;
-                        let current_filters = orb.active_filters.clone();
+                    let current_orbs = orbs.get();
+                    let orb = current_orbs.iter().find(|o| o.id == id)?;
+                    let (screen_x, screen_y, screen_r) = three_interop::get_screen_pos(id, w, h)?;
 
-                        view! {
-                            <div
-                                class="animate-fade-in absolute z-50 pointer-events-auto"
-                                style:top=format!("{}px", menu_top)
-                                style:left=format!("{}px", left)
-                                style:transform="translate(-50%, -100%)"
-                                on:mouseenter=move |_| set_is_hovering_menu.set(true)
-                                on:mouseleave=move |_| {
-                                    set_is_hovering_menu.set(false);
-                                }
-                                on:mousedown=move |ev: MouseEvent| {
-                                    ev.stop_propagation();
-                                }
-                            >
-                                <div class="flex flex-col items-center gap-1">
-                                    // Filter buttons row
-                                    <div class="flex gap-1">
-                                        {filter_kinds
-                                            .iter()
-                                            .map(|(fk, label)| {
-                                                let fk = *fk;
-                                                let is_active = current_filters.contains(&fk);
-                                                let border_color = fk.color();
-                                                view! {
-                                                    <button
-                                                        class="rounded-[10px] tracking-[0.5px] font-medium text-[9px] px-1.5 py-[3px] cursor-pointer backdrop-blur-sm font-mono whitespace-nowrap transition-all duration-200"
-                                                        style:background=move || {
-                                                            if is_active {
-                                                                format!("{}22", border_color)
-                                                            } else {
-                                                                "rgba(0,0,0,0.8)".into()
-                                                            }
+                    let menu_top = screen_y - screen_r - 15.0;
+                    let left = screen_x;
+                    let is_binaural = orb.binaural_active;
+                    let current_filters = orb.active_filters.clone();
+
+                    Some(view! {
+                        <div
+                            class="animate-fade-in absolute z-50 pointer-events-auto"
+                            style:top=format!("{}px", menu_top)
+                            style:left=format!("{}px", left)
+                            style:transform="translate(-50%, -100%)"
+                            on:mouseenter=move |_| set_is_hovering_menu.set(true)
+                            on:mouseleave=move |_| {
+                                set_is_hovering_menu.set(false);
+                            }
+                            on:mousedown=move |ev: MouseEvent| {
+                                ev.stop_propagation();
+                            }
+                        >
+                            <div class="flex flex-col items-center gap-1">
+                                // Filter buttons row
+                                <div class="flex gap-1">
+                                    {filter_kinds
+                                        .iter()
+                                        .map(|(fk, label)| {
+                                            let fk = *fk;
+                                            let is_active = current_filters.contains(&fk);
+                                            let border_color = fk.color();
+                                            view! {
+                                                <button
+                                                    class="rounded-[10px] tracking-[0.5px] font-medium text-[9px] px-1.5 py-[3px] cursor-pointer backdrop-blur-sm font-mono whitespace-nowrap transition-all duration-200"
+                                                    style:background=move || {
+                                                        if is_active {
+                                                            format!("{}22", border_color)
+                                                        } else {
+                                                            "rgba(0,0,0,0.8)".into()
                                                         }
-                                                        style:border=move || {
-                                                            if is_active {
-                                                                format!("1px solid {}", border_color)
-                                                            } else {
-                                                                "1px solid rgba(255,255,255,0.2)".into()
-                                                            }
+                                                    }
+                                                    style:border=move || {
+                                                        if is_active {
+                                                            format!("1px solid {}", border_color)
+                                                        } else {
+                                                            "1px solid rgba(255,255,255,0.2)".into()
                                                         }
-                                                        style:color=move || {
-                                                            if is_active {
-                                                                border_color.to_string()
-                                                            } else {
-                                                                "rgba(255,255,255,0.6)".into()
-                                                            }
+                                                    }
+                                                    style:color=move || {
+                                                        if is_active {
+                                                            border_color.to_string()
+                                                        } else {
+                                                            "rgba(255,255,255,0.6)".into()
                                                         }
-                                                        on:click=move |_| toggle_orb_filter(id, fk)
-                                                    >
-                                                        {*label}
-                                                    </button>
-                                                }
-                                            })
-                                            .collect::<Vec<_>>()}
-                                    </div>
-                                    // Action buttons row
-                                    <div class="flex gap-1">
-                                        <button
-                                            class="text-[10px] px-2 py-1 bg-black/80 backdrop-blur-sm rounded-2xl font-mono cursor-pointer whitespace-nowrap transition-all duration-200"
-                                            style:border=move || if is_binaural { "1px solid #00CED1" } else { "1px solid rgba(255,255,255,0.2)" }
-                                            style:color=move || if is_binaural { "#00CED1" } else { "#b0b0b0" }
-                                            on:click=move |_| toggle_orb_binaural(id)
-                                        >
-                                            "Binaural"
-                                        </button>
-                                        <button
-                                            class="text-[10px] px-2 py-1 bg-black/80 backdrop-blur-sm border border-[rgba(255,80,80,0.25)] text-[rgba(255,80,80,0.6)] rounded-2xl font-mono cursor-pointer whitespace-nowrap transition-all duration-200 hover:border-[rgba(255,80,80,0.5)] hover:text-[#ff5050]"
-                                            on:click=move |_| remove_source_by_id(id)
-                                        >
-                                            "Delete"
-                                        </button>
-                                    </div>
+                                                    }
+                                                    on:click=move |_| toggle_orb_filter(id, fk)
+                                                >
+                                                    {*label}
+                                                </button>
+                                            }
+                                        })
+                                        .collect::<Vec<_>>()}
+                                </div>
+                                // Action buttons row
+                                <div class="flex gap-1">
+                                    <button
+                                        class="text-[10px] px-2 py-1 bg-black/80 backdrop-blur-sm rounded-2xl font-mono cursor-pointer whitespace-nowrap transition-all duration-200"
+                                        style:border=move || if is_binaural { "1px solid #00CED1" } else { "1px solid rgba(255,255,255,0.2)" }
+                                        style:color=move || if is_binaural { "#00CED1" } else { "#b0b0b0" }
+                                        on:click=move |_| toggle_orb_binaural(id)
+                                    >
+                                        "Binaural"
+                                    </button>
+                                    <button
+                                        class="text-[10px] px-2 py-1 bg-black/80 backdrop-blur-sm border border-[rgba(255,80,80,0.25)] text-[rgba(255,80,80,0.6)] rounded-2xl font-mono cursor-pointer whitespace-nowrap transition-all duration-200 hover:border-[rgba(255,80,80,0.5)] hover:text-[#ff5050]"
+                                        on:click=move |_| remove_source_by_id(id)
+                                    >
+                                        "Delete"
+                                    </button>
                                 </div>
                             </div>
-                        }
+                        </div>
                     })
                 })
             }}

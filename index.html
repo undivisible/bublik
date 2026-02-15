@@ -10,43 +10,71 @@
                 theme: {
                     extend: {
                         fontFamily: {
-                            mono: ['"SF Mono"', '"Fira Code"', '"JetBrains Mono"', 'monospace'],
+                            mono: [
+                                '"SF Mono"',
+                                '"Fira Code"',
+                                '"JetBrains Mono"',
+                                "monospace",
+                            ],
                         },
                         colors: {
                             cyan: {
-                                400: '#00CED1',
-                                500: '#00B7BA',
+                                400: "#00CED1",
+                                500: "#00B7BA",
                             },
                         },
                         animation: {
-                            'fade-in': 'fadeIn 0.2s ease-out',
-                            'slide-up': 'slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
-                            'pulse-glow': 'pulseGlow 2s ease-in-out infinite',
-                            'breathe': 'breathe 4s ease-in-out infinite',
+                            "fade-in": "fadeIn 0.2s ease-out",
+                            "slide-up":
+                                "slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
+                            "pulse-glow": "pulseGlow 2s ease-in-out infinite",
+                            breathe: "breathe 4s ease-in-out infinite",
                         },
                         keyframes: {
                             fadeIn: {
-                                '0%': { opacity: '0', transform: 'translate(-50%, 8px)' },
-                                '100%': { opacity: '1', transform: 'translate(-50%, 0)' },
+                                "0%": {
+                                    opacity: "0",
+                                    transform: "translate(-50%, 8px)",
+                                },
+                                "100%": {
+                                    opacity: "1",
+                                    transform: "translate(-50%, 0)",
+                                },
                             },
                             slideUp: {
-                                '0%': { opacity: '0', transform: 'translateY(8px)' },
-                                '100%': { opacity: '1', transform: 'translateY(0)' },
+                                "0%": {
+                                    opacity: "0",
+                                    transform: "translateY(8px)",
+                                },
+                                "100%": {
+                                    opacity: "1",
+                                    transform: "translateY(0)",
+                                },
                             },
                             pulseGlow: {
-                                '0%, 100%': { boxShadow: '0 0 8px rgba(0, 206, 209, 0.2)' },
-                                '50%': { boxShadow: '0 0 20px rgba(0, 206, 209, 0.4)' },
+                                "0%, 100%": {
+                                    boxShadow: "0 0 8px rgba(0, 206, 209, 0.2)",
+                                },
+                                "50%": {
+                                    boxShadow:
+                                        "0 0 20px rgba(0, 206, 209, 0.4)",
+                                },
                             },
                             breathe: {
-                                '0%, 100%': { opacity: '0.6' },
-                                '50%': { opacity: '1' },
+                                "0%, 100%": { opacity: "0.6" },
+                                "50%": { opacity: "1" },
                             },
                         },
                     },
                 },
             };
         </script>
+        <script src="https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.min.js"></script>
         <link data-trunk rel="css" href="style/main.css" />
+        <link data-trunk rel="copy" href="js/" />
+        <link data-trunk rel="copy" href="CNAME" />
     </head>
-    <body class="bg-[#0a0a0a] text-gray-200 font-mono select-none overflow-hidden w-full h-full m-0 p-0"></body>
+    <body
+        class="bg-[#0a0a0a] text-gray-200 font-mono select-none overflow-hidden w-full h-full m-0 p-0"
+    ></body>
 </html>
