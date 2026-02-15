@@ -36,7 +36,9 @@ jobs:
           restore-keys: ${{ runner.os }}-cargo-
 
       - name: Install trunk
-        run: cargo install trunk --locked
+        uses: jetli/trunk-action@v0.5.1
+        with:
+          version: "latest"
 
       - name: Build
         run: trunk build --release --public-url /bublik/

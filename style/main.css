@@ -1,27 +1,32 @@
+/* Reset */
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
 }
 
-html, body {
+html,
+body {
     width: 100%;
     height: 100%;
     overflow: hidden;
     background: #0a0a0a;
     color: #e0e0e0;
-    font-family: 'SF Mono', 'Fira Code', 'JetBrains Mono', monospace;
+    font-family: "SF Mono", "Fira Code", "JetBrains Mono", monospace;
     user-select: none;
     -webkit-user-select: none;
 }
 
+/* App container */
 .app {
     display: flex;
     flex-direction: column;
     width: 100vw;
     height: 100vh;
+    position: relative;
 }
 
+/* Canvas */
 .terrain-canvas {
     flex: 1;
     display: block;
@@ -37,34 +42,37 @@ html, body {
     right: 0;
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
     padding: 10px 16px;
-    background: rgba(10, 10, 10, 0.92);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    background: rgba(10, 10, 10, 0.94);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
     border-top: 1px solid rgba(255, 255, 255, 0.06);
-    overflow-x: auto;
+    overflow: visible;
     z-index: 100;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
+    justify-content: center;
 }
 
 .dock-section {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
     flex-shrink: 0;
 }
 
 .dock-label {
-    font-size: 10px;
-    color: rgba(255, 255, 255, 0.35);
+    font-size: 9px;
+    color: rgba(255, 255, 255, 0.3);
     text-transform: uppercase;
-    letter-spacing: 1px;
+    letter-spacing: 1.5px;
+    font-weight: 500;
 }
 
+/* Play button */
 .dock-btn {
     background: none;
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.12);
     color: #e0e0e0;
     width: 36px;
     height: 36px;
@@ -74,21 +82,23 @@ html, body {
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.2s;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .dock-btn:hover {
-    border-color: #00CED1;
-    color: #00CED1;
-    box-shadow: 0 0 12px rgba(0, 206, 209, 0.3);
+    border-color: #00ced1;
+    color: #00ced1;
+    box-shadow: 0 0 16px rgba(0, 206, 209, 0.35);
+    transform: scale(1.08);
 }
 
 .play-btn {
-    width: 40px;
-    height: 40px;
+    width: 42px;
+    height: 42px;
     font-size: 16px;
 }
 
+/* Volume */
 .volume-control {
     display: flex;
     align-items: center;
@@ -96,118 +106,144 @@ html, body {
 }
 
 .vol-label {
-    font-size: 9px;
-    color: rgba(255, 255, 255, 0.3);
+    font-size: 8px;
+    color: rgba(255, 255, 255, 0.25);
     text-transform: uppercase;
+    letter-spacing: 1px;
 }
 
 .vol-slider {
     -webkit-appearance: none;
     appearance: none;
     width: 70px;
-    height: 3px;
-    background: rgba(255, 255, 255, 0.15);
+    height: 2px;
+    background: rgba(255, 255, 255, 0.12);
     border-radius: 2px;
     outline: none;
     cursor: pointer;
+    transition: background 0.2s;
+}
+
+.vol-slider:hover {
+    background: rgba(255, 255, 255, 0.2);
 }
 
 .vol-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
-    width: 12px;
-    height: 12px;
+    width: 14px;
+    height: 14px;
     border-radius: 50%;
-    background: #00CED1;
+    background: #00ced1;
     cursor: pointer;
-    box-shadow: 0 0 6px rgba(0, 206, 209, 0.5);
+    box-shadow: 0 0 8px rgba(0, 206, 209, 0.5);
+    transition: box-shadow 0.2s;
+}
+
+.vol-slider::-webkit-slider-thumb:hover {
+    box-shadow: 0 0 14px rgba(0, 206, 209, 0.7);
 }
 
 .vol-slider::-moz-range-thumb {
-    width: 12px;
-    height: 12px;
+    width: 14px;
+    height: 14px;
     border-radius: 50%;
-    background: #00CED1;
+    background: #00ced1;
     cursor: pointer;
     border: none;
-    box-shadow: 0 0 6px rgba(0, 206, 209, 0.5);
+    box-shadow: 0 0 8px rgba(0, 206, 209, 0.5);
 }
 
 /* === PILLS === */
 .dock-pill {
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: #c0c0c0;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: #b0b0b0;
     padding: 5px 10px;
-    border-radius: 14px;
+    border-radius: 16px;
     font-size: 11px;
     font-family: inherit;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     white-space: nowrap;
 }
 
 .dock-pill:hover {
-    background: rgba(255, 255, 255, 0.08);
-    border-color: rgba(255, 255, 255, 0.25);
+    background: rgba(255, 255, 255, 0.07);
+    border-color: rgba(255, 255, 255, 0.2);
     color: #fff;
+    transform: translateY(-1px);
 }
 
 .source-pill {
-    border-left-width: 3px;
+    border-width: 1px;
 }
 
 .source-pill:hover {
-    box-shadow: 0 0 8px rgba(255, 255, 255, 0.1);
+    box-shadow: 0 0 12px rgba(255, 255, 255, 0.08);
 }
 
 .remove-pill {
-    border-color: rgba(255, 80, 80, 0.3);
-    color: rgba(255, 80, 80, 0.7);
+    border-color: rgba(255, 80, 80, 0.25);
+    color: rgba(255, 80, 80, 0.6);
 }
 
 .remove-pill:hover {
-    border-color: rgba(255, 80, 80, 0.6);
+    border-color: rgba(255, 80, 80, 0.5);
     color: #ff5050;
-    background: rgba(255, 80, 80, 0.08);
+    background: rgba(255, 80, 80, 0.06);
+    box-shadow: 0 0 12px rgba(255, 80, 80, 0.15);
 }
 
 .binaural-pill {
-    border-color: rgba(0, 206, 209, 0.3);
+    border-color: rgba(0, 206, 209, 0.25);
 }
 
 .binaural-pill.active {
-    background: rgba(0, 206, 209, 0.12);
-    border-color: #00CED1;
-    color: #00CED1;
-    box-shadow: 0 0 8px rgba(0, 206, 209, 0.2);
+    background: rgba(0, 206, 209, 0.1);
+    border-color: #00ced1;
+    color: #00ced1;
+    box-shadow: 0 0 12px rgba(0, 206, 209, 0.25);
 }
 
 .preset-pill {
-    border-color: rgba(147, 112, 219, 0.3);
+    border-color: rgba(147, 112, 219, 0.25);
 }
 
 .preset-pill:hover {
-    border-color: rgba(147, 112, 219, 0.6);
-    color: #9370DB;
-    box-shadow: 0 0 8px rgba(147, 112, 219, 0.15);
+    border-color: rgba(147, 112, 219, 0.5);
+    color: #9370db;
+    box-shadow: 0 0 12px rgba(147, 112, 219, 0.2);
+}
+
+.preset-pill.active {
+    background: rgba(147, 112, 219, 0.12);
+    border-color: #9370db;
+    color: #9370db;
+    box-shadow: 0 0 14px rgba(147, 112, 219, 0.3);
+}
+
+.filter-pill {
+    border-radius: 10px;
+    letter-spacing: 0.5px;
+    font-weight: 500;
 }
 
 .sources-section {
     flex-wrap: wrap;
+    justify-content: center;
 }
 
 .presets-section {
     margin-left: auto;
 }
 
-/* === DOCK RIGHT (Me / About) === */
+/* === DOCK RIGHT === */
 .dock-right {
     margin-left: auto;
-    gap: 6px;
+    gap: 5px;
 }
 
-/* When presets-section already has margin-left: auto, dock-right should not */
 .presets-section ~ .dock-right {
     margin-left: 0;
 }
@@ -223,24 +259,46 @@ html, body {
     bottom: calc(100% + 8px);
     right: 0;
     min-width: 180px;
-    background: rgba(18, 18, 18, 0.96);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 10px;
+    background: rgba(14, 14, 14, 0.97);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
     padding: 6px 0;
     z-index: 200;
-    box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.6);
+}
+
+.dock-dropdown-content::before {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    height: 10px;
+    background: transparent;
 }
 
 .dock-dropdown:hover .dock-dropdown-content {
     display: block;
+    animation: slideUp 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .dock-dropdown-content a {
     display: block;
     padding: 8px 16px;
-    color: #c0c0c0;
+    color: #a0a0a0;
     text-decoration: none;
     font-size: 12px;
     transition: all 0.15s;
@@ -248,63 +306,64 @@ html, body {
 }
 
 .dock-dropdown-content a:hover {
-    color: #00CED1;
-    background: rgba(0, 206, 209, 0.08);
+    color: #00ced1;
+    background: rgba(0, 206, 209, 0.06);
 }
 
 /* Me pill */
 .me-pill {
-    border-color: rgba(0, 255, 136, 0.3);
+    border-color: rgba(0, 255, 136, 0.25);
 }
 
 .me-pill:hover {
-    border-color: rgba(0, 255, 136, 0.6);
-    color: #00FF88;
-    box-shadow: 0 0 8px rgba(0, 255, 136, 0.15);
+    border-color: rgba(0, 255, 136, 0.5);
+    color: #00ff88;
+    box-shadow: 0 0 12px rgba(0, 255, 136, 0.2);
 }
 
 /* About pill */
 .about-pill {
-    border-color: rgba(255, 215, 0, 0.3);
+    border-color: rgba(255, 215, 0, 0.25);
 }
 
 .about-pill:hover {
-    border-color: rgba(255, 215, 0, 0.6);
-    color: #FFD700;
-    box-shadow: 0 0 8px rgba(255, 215, 0, 0.15);
+    border-color: rgba(255, 215, 0, 0.5);
+    color: #ffd700;
+    box-shadow: 0 0 12px rgba(255, 215, 0, 0.2);
 }
 
-/* About content (wider) */
 .about-content {
-    min-width: 280px;
+    min-width: 300px;
     padding: 0;
 }
 
 .about-text {
-    padding: 14px 18px;
+    padding: 16px 20px;
     font-size: 11px;
-    line-height: 1.6;
-    color: rgba(255, 255, 255, 0.65);
+    line-height: 1.7;
+    color: rgba(255, 255, 255, 0.55);
 }
 
 .about-title {
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 600;
-    color: #00CED1;
+    color: #00ced1;
     margin-bottom: 8px;
-    letter-spacing: 1px;
+    letter-spacing: 2px;
+    text-transform: lowercase;
 }
 
 .about-features {
-    margin-top: 8px;
+    margin-top: 10px;
     font-size: 10px;
-    color: rgba(255, 255, 255, 0.4);
+    color: rgba(255, 255, 255, 0.35);
+    line-height: 1.8;
 }
 
 .about-hint {
-    margin-top: 10px;
+    margin-top: 12px;
     font-size: 10px;
-    color: rgba(0, 206, 209, 0.5);
+    color: rgba(0, 206, 209, 0.45);
     font-style: italic;
 }
 
@@ -318,8 +377,24 @@ html, body {
 }
 
 .dock::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.08);
     border-radius: 1px;
+}
+
+/* Orb Hover Menu */
+.orb-menu {
+    animation: fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translate(-50%, calc(-100% + 8px));
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, -100%);
+    }
 }
 
 /* Mobile */
@@ -327,11 +402,13 @@ html, body {
     .dock {
         flex-wrap: wrap;
         padding: 8px 10px;
-        gap: 6px;
+        gap: 5px;
+        overflow: visible;
     }
 
     .dock-section {
         flex-wrap: wrap;
+        justify-content: center;
     }
 
     .presets-section {

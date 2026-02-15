@@ -1,7 +1,8 @@
-use crate::state::Preset;
+use crate::state::presets::Preset;
 use wasm_bindgen::prelude::*;
 
 const STORAGE_KEY: &str = "bublik_presets";
+const SESSION_KEY: &str = "bublik_session";
 
 pub fn save_presets(presets: &[Preset]) -> Result<(), JsValue> {
     let window = web_sys::window().ok_or("no window")?;
@@ -27,6 +28,21 @@ pub fn load_presets() -> Vec<Preset> {
         _ => return Vec::new(),
     };
     serde_json::from_str(&json).unwrap_or_default()
+}
+
+pub fn save_session(state: &Preset) -> Result<(), JsValue> {
+    let window = web_sys::window().ok_or("no window")?;
+    let storage = window.local_storage()?.ok_or("no localStorage")?;
+    let json = serde_json::to_string(state).map_err(|e| JsValue::from_str(&e.to_string()))?;
+    storage.set_item(SESSION_KEY, &json)?;
+    Ok(())
+}
+
+pub fn load_session() -> Option<Preset> {
+    let window = web_sys::window()?;
+    let storage = window.local_storage().ok()??;
+    let json = storage.get_item(SESSION_KEY).ok()??;
+    serde_json::from_str(&json).ok()
 }
 
 pub fn encode_url_state(preset: &Preset) -> String {

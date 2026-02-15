@@ -6,6 +6,8 @@ use web_sys::{
 pub struct BinauralBeat {
     left_osc: OscillatorNode,
     right_osc: OscillatorNode,
+    left_gain: GainNode,
+    right_gain: GainNode,
     gain_node: GainNode,
     merger: ChannelMergerNode,
     pub base_freq: f32,
@@ -54,6 +56,8 @@ impl BinauralBeat {
         Ok(Self {
             left_osc,
             right_osc,
+            left_gain,
+            right_gain,
             gain_node,
             merger,
             base_freq,
@@ -94,6 +98,8 @@ impl BinauralBeat {
         let _ = self.right_osc.stop();
         let _ = self.left_osc.disconnect();
         let _ = self.right_osc.disconnect();
+        let _ = self.left_gain.disconnect();
+        let _ = self.right_gain.disconnect();
         let _ = self.merger.disconnect();
         let _ = self.gain_node.disconnect();
     }
