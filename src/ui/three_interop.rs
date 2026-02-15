@@ -2,7 +2,7 @@ use wasm_bindgen::prelude::*;
 
 use crate::ui::orb::OrbData;
 
-#[wasm_bindgen(module = "./js/three_scene.js")]
+#[wasm_bindgen(module = "/js/three_scene.js")]
 extern "C" {
     #[wasm_bindgen(js_name = "initScene")]
     pub fn init_scene(canvas: &web_sys::HtmlCanvasElement);

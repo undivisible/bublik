@@ -11,7 +11,16 @@ const WORLD_W = 600;
 const WORLD_H = 400;
 
 export function initScene(canvas) {
-    scene = new THREE.Scene();
+    console.log('initScene called', canvas, typeof THREE);
+    console.log('Canvas size:', canvas.width, 'x', canvas.height);
+    
+    if (typeof THREE === 'undefined') {
+        console.error('THREE is not defined! Check if Three.js CDN is loaded.');
+        return;
+    }
+    
+    try {
+        scene = new THREE.Scene();
     scene.fog = new THREE.FogExp2(0x0a0a0a, 0.003);
 
     camera = new THREE.PerspectiveCamera(60, canvas.clientWidth / canvas.clientHeight, 1, 2000);
@@ -27,19 +36,23 @@ export function initScene(canvas) {
 
     clock = new THREE.Clock();
 
-    // Lighting
-    const ambient = new THREE.AmbientLight(0x0a1a3a, 0.6);
+    // Improved lighting for better orb visibility
+    const ambient = new THREE.AmbientLight(0x1a2a4a, 1.5);
     scene.add(ambient);
 
-    const keyLight = new THREE.DirectionalLight(0x00ced1, 0.8);
+    const keyLight = new THREE.DirectionalLight(0x00ced1, 2.5);
     keyLight.position.set(100, 200, 150);
     scene.add(keyLight);
 
-    const rimLight = new THREE.DirectionalLight(0x9370db, 0.4);
+    const rimLight = new THREE.DirectionalLight(0x9370db, 1.2);
     rimLight.position.set(-100, 100, -150);
     scene.add(rimLight);
 
-    const pointLight = new THREE.PointLight(0x00ced1, 0.5, 800);
+    const fillLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    fillLight.position.set(0, 100, 200);
+    scene.add(fillLight);
+
+    const pointLight = new THREE.PointLight(0x00ced1, 2.0, 800);
     pointLight.position.set(0, 150, 0);
     scene.add(pointLight);
 
@@ -48,6 +61,16 @@ export function initScene(canvas) {
 
     // Ambient rings on XZ plane
     createAmbientRings();
+    
+    console.log('initScene complete - scene:', scene, 'renderer:', renderer);
+    console.log('Scene children count:', scene.children.length);
+    
+    // Do an immediate render to test
+    renderer.render(scene, camera);
+    console.log('Initial render complete');
+    } catch (error) {
+        console.error('Error in initScene:', error);
+    }
 }
 
 function createParticles() {
@@ -63,15 +86,43 @@ function createParticles() {
 
     const mat = new THREE.PointsMaterial({
         color: 0x00ced1,
-        size: 1.5,
+        size: 2.5,
         transparent: true,
-        opacity: 0.4,
+        opacity: 0.7,
         blending: THREE.AdditiveBlending,
         depthWrite: false,
     });
 
     particles = new THREE.Points(geo, mat);
     scene.add(particles);
+    
+    // Add point lights that move with some particles for directional lighting
+    const lightCount = 20;
+    for (let i = 0; i < lightCount; i++) {
+        const idx = Math.floor(Math.random() * count);
+        const x = positions[idx * 3];
+        const y = positions[idx * 3 + 1];
+        const z = positions[idx * 3 + 2];
+        
+        const light = new THREE.PointLight(0x00ced1, 1.5, 400);
+        light.position.set(x, y, z);
+        scene.add(light);
+        
+        // Store reference for animation
+        if (!particles.userData.lights) {
+            particles.userData.lights = [];
+        }
+        particles.userData.lights.push({
+            light: light,
+            basePos: new THREE.Vector3(x, y, z),
+            offset: new THREE.Vector3(
+                Math.random() * 50 - 25,
+                Math.random() * 50 - 25,
+                Math.random() * 50 - 25
+            ),
+            speed: 0.1 + Math.random() * 0.2
+        });
+    }
 }
 
 function createAmbientRings() {
@@ -118,13 +169,13 @@ export function addOrb(id, colorHex, normX, normY, radius) {
     const coreMat = new THREE.MeshPhysicalMaterial({
         color: color,
         emissive: color,
-        emissiveIntensity: 0.6,
+        emissiveIntensity: 2.5,
         metalness: 0.1,
         roughness: 0.15,
         clearcoat: 1.0,
         clearcoatRoughness: 0.05,
         transparent: true,
-        opacity: 0.9,
+        opacity: 0.95,
     });
     const coreMesh = new THREE.Mesh(coreGeo, coreMat);
     coreMesh.name = 'core';
@@ -132,7 +183,7 @@ export function addOrb(id, colorHex, normX, normY, radius) {
 
     // Glow layers (3 additive BackSide spheres)
     const glowRadii = [0.7, 1.2, 1.8];
-    const glowAlphas = [0.15, 0.08, 0.04];
+    const glowAlphas = [0.4, 0.25, 0.15];
     for (let i = 0; i < 3; i++) {
         const glowGeo = new THREE.SphereGeometry(radius * glowRadii[i], 24, 24);
         const glowMat = new THREE.MeshBasicMaterial({
@@ -273,7 +324,10 @@ export function removeAllOrbs() {
 }
 
 export function render(time) {
-    if (!renderer || !scene || !camera) return;
+    if (!renderer || !scene || !camera) {
+        console.warn('render() called but scene not ready:', { renderer: !!renderer, scene: !!scene, camera: !!camera });
+        return;
+    }
 
     const t = time; // time in seconds from Rust
 
@@ -289,6 +343,16 @@ export function render(time) {
     // Animate particles
     if (particles) {
         particles.rotation.y += 0.0001;
+        
+        // Animate particle lights
+        if (particles.userData.lights) {
+            for (const lightData of particles.userData.lights) {
+                const offset = lightData.offset;
+                lightData.light.position.x = lightData.basePos.x + offset.x * Math.sin(t * lightData.speed);
+                lightData.light.position.y = lightData.basePos.y + offset.y * Math.cos(t * lightData.speed * 0.7);
+                lightData.light.position.z = lightData.basePos.z + offset.z * Math.sin(t * lightData.speed * 0.5);
+            }
+        }
     }
 
     // Animate ambient rings
@@ -387,22 +451,32 @@ export function resize(w, h) {
 }
 
 export function getOrbAtPoint(px, py, w, h) {
-    if (!camera || !scene) return -1;
+    if (!camera || !scene) {
+        console.log('getOrbAtPoint: camera or scene not ready');
+        return -1;
+    }
 
     const mouse = new THREE.Vector2(
         (px / w) * 2 - 1,
         -(py / h) * 2 + 1
     );
 
+    console.log('Raycasting at mouse:', mouse, 'orbs count:', orbs.size);
+
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(mouse, camera);
+
+    // Debug: log raycaster
+    console.log('Raycaster origin:', raycaster.ray.origin, 'direction:', raycaster.ray.direction);
 
     // Collect all orb core meshes
     const targets = [];
     for (const [id, group] of orbs) {
+        console.log('Orb', id, 'position:', group.position, 'radius:', group.userData.baseRadius);
+        
         // Use a larger invisible sphere for easier picking
         const ud = group.userData;
-        const r = ud.baseRadius * 0.7;
+        const r = ud.baseRadius * 2.0; // Much larger hit radius
         const pickGeo = new THREE.SphereGeometry(r, 8, 8);
         const pickMesh = new THREE.Mesh(pickGeo, new THREE.MeshBasicMaterial({ visible: false }));
         pickMesh.position.copy(group.position);
@@ -411,7 +485,12 @@ export function getOrbAtPoint(px, py, w, h) {
         scene.add(pickMesh);
     }
 
-    const intersects = raycaster.intersectObjects(targets);
+    const intersects = raycaster.intersectObjects(targets, false);
+    
+    console.log('Intersects:', intersects.length);
+    if (intersects.length > 0) {
+        console.log('First intersect:', intersects[0]);
+    }
 
     // Clean up pick meshes
     for (const m of targets) {
@@ -421,6 +500,7 @@ export function getOrbAtPoint(px, py, w, h) {
     }
 
     if (intersects.length > 0) {
+        console.log('Hit orb ID:', intersects[0].object.userData.orbId);
         return intersects[0].object.userData.orbId;
     }
     return -1;
