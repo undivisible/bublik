@@ -41,7 +41,7 @@ jobs:
           version: "latest"
 
       - name: Build
-        run: trunk build --release --public-url /bublik/
+        run: trunk build --release --public-url /
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
