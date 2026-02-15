@@ -52,9 +52,6 @@ web-sys = { version = "0.3", features = [
     "DomRect",
     "PointerEvent",
     "Performance",
-    "ResizeObserver",
-    "ResizeObserverEntry",
-    "ResizeObserverSize",
     "console",
 ] }
 wasm-bindgen = "0.2"
