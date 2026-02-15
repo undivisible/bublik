@@ -332,7 +332,9 @@ pub fn App() -> impl IntoView {
                             // Add this filter — use position-based freq for noise sources
                             let (freq, q) = if orb.kind.is_noise() {
                                 match filter_kind {
-                                    FilterKind::Lowpass | FilterKind::Bandpass => (x_to_cutoff(orb.norm_x), 1.0),
+                                    FilterKind::Lowpass | FilterKind::Bandpass => {
+                                        (x_to_cutoff(orb.norm_x), 1.0)
+                                    }
                                     FilterKind::Highpass => (x_to_cutoff(orb.norm_x), 1.0),
                                     FilterKind::Notch => (x_to_cutoff(orb.norm_x), 5.0),
                                 }
@@ -609,13 +611,14 @@ pub fn App() -> impl IntoView {
                 } else if !is_hovering_menu.get_untracked() {
                     // Keep hover alive if mouse is in approach zone above the hovered orb
                     // (bridging the gap between orb and menu buttons)
-                    let in_approach = hovered_orb_id.get_untracked().and_then(|hid| {
-                        current_orbs.iter().find(|o| o.id == hid)
-                    }).is_some_and(|orb| {
-                        let dx = (px - orb.x).abs();
-                        let dy = orb.y - py; // positive = above orb
-                        dx < 100.0 && dy > 0.0 && dy < orb.radius as f64 + 100.0
-                    });
+                    let in_approach = hovered_orb_id
+                        .get_untracked()
+                        .and_then(|hid| current_orbs.iter().find(|o| o.id == hid))
+                        .is_some_and(|orb| {
+                            let dx = (px - orb.x).abs();
+                            let dy = orb.y - py; // positive = above orb
+                            dx < 100.0 && dy > 0.0 && dy < orb.radius as f64 + 100.0
+                        });
                     if !in_approach {
                         set_hovered_orb_id.set(None);
                     }
@@ -683,9 +686,7 @@ pub fn App() -> impl IntoView {
                     engine.with_value(|cell| {
                         if let Some(ref mut eng) = *cell.borrow_mut() {
                             let current_orbs = orbs.get_untracked();
-                            if let Some(idx) =
-                                current_orbs.iter().position(|o| o.id == drag_id)
-                            {
+                            if let Some(idx) = current_orbs.iter().position(|o| o.id == drag_id) {
                                 if let Some(source) = eng.sources_mut().get_mut(idx) {
                                     source.set_gain(norm_y.clamp(0.0, 1.0));
                                     if current_orbs[idx].kind.is_noise() {
@@ -719,10 +720,10 @@ pub fn App() -> impl IntoView {
     ];
 
     view! {
-        <div class="app">
+        <div class="fixed inset-0 w-full h-full">
             <canvas
                 node_ref=canvas_ref
-                class="terrain-canvas"
+                class="absolute inset-0 w-full h-full block cursor-crosshair touch-none"
                 on:mousedown=on_pointer_down
                 on:mousemove=on_pointer_move
                 on:mouseup=on_pointer_up
@@ -743,29 +744,21 @@ pub fn App() -> impl IntoView {
 
                         view! {
                             <div
-                                class="orb-menu"
+                                class="animate-fade-in absolute z-50 pointer-events-auto"
                                 style:top=format!("{}px", menu_top)
                                 style:left=format!("{}px", left)
-                                style:position="absolute"
                                 style:transform="translate(-50%, -100%)"
-                                style:z-index="50"
-                                style:pointer-events="auto"
                                 on:mouseenter=move |_| set_is_hovering_menu.set(true)
                                 on:mouseleave=move |_| {
                                     set_is_hovering_menu.set(false);
-                                    // Don't clear hovered_orb_id here — let canvas mousemove
-                                    // handle dismissal via approach zone. Clearing here causes
-                                    // the menu DOM to be destroyed and recreated every frame.
                                 }
                                 on:mousedown=move |ev: MouseEvent| {
                                     ev.stop_propagation();
                                 }
                             >
-                                <div
-                                    style="display:flex;flex-direction:column;align-items:center;gap:4px;"
-                                >
+                                <div class="flex flex-col items-center gap-1">
                                     // Filter buttons row
-                                    <div style="display:flex;gap:4px;">
+                                    <div class="flex gap-1">
                                         {filter_kinds
                                             .iter()
                                             .map(|(fk, label)| {
@@ -774,9 +767,7 @@ pub fn App() -> impl IntoView {
                                                 let border_color = fk.color();
                                                 view! {
                                                     <button
-                                                        class="dock-pill filter-pill"
-                                                        style:font-size="9px"
-                                                        style:padding="3px 6px"
+                                                        class="rounded-[10px] tracking-[0.5px] font-medium text-[9px] px-1.5 py-[3px] cursor-pointer backdrop-blur-sm font-mono whitespace-nowrap transition-all duration-200"
                                                         style:background=move || {
                                                             if is_active {
                                                                 format!("{}22", border_color)
@@ -784,7 +775,6 @@ pub fn App() -> impl IntoView {
                                                                 "rgba(0,0,0,0.8)".into()
                                                             }
                                                         }
-                                                        style:backdrop-filter="blur(4px)"
                                                         style:border=move || {
                                                             if is_active {
                                                                 format!("1px solid {}", border_color)
@@ -808,25 +798,17 @@ pub fn App() -> impl IntoView {
                                             .collect::<Vec<_>>()}
                                     </div>
                                     // Action buttons row
-                                    <div style="display:flex;gap:4px;">
+                                    <div class="flex gap-1">
                                         <button
-                                            class="dock-pill"
-                                            class:active=is_binaural
-                                            style:font-size="10px"
-                                            style:padding="4px 8px"
-                                            style:background="rgba(0, 0, 0, 0.8)"
-                                            style:backdrop-filter="blur(4px)"
+                                            class="text-[10px] px-2 py-1 bg-black/80 backdrop-blur-sm rounded-2xl font-mono cursor-pointer whitespace-nowrap transition-all duration-200"
                                             style:border=move || if is_binaural { "1px solid #00CED1" } else { "1px solid rgba(255,255,255,0.2)" }
+                                            style:color=move || if is_binaural { "#00CED1" } else { "#b0b0b0" }
                                             on:click=move |_| toggle_orb_binaural(id)
                                         >
                                             "Binaural"
                                         </button>
                                         <button
-                                            class="dock-pill remove-pill"
-                                            style:font-size="10px"
-                                            style:padding="4px 8px"
-                                            style:background="rgba(0, 0, 0, 0.8)"
-                                            style:backdrop-filter="blur(4px)"
+                                            class="text-[10px] px-2 py-1 bg-black/80 backdrop-blur-sm border border-[rgba(255,80,80,0.25)] text-[rgba(255,80,80,0.6)] rounded-2xl font-mono cursor-pointer whitespace-nowrap transition-all duration-200 hover:border-[rgba(255,80,80,0.5)] hover:text-[#ff5050]"
                                             on:click=move |_| remove_source_by_id(id)
                                         >
                                             "Delete"

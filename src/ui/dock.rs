@@ -39,10 +39,15 @@ pub fn Dock(
     let (show_about, set_show_about) = signal(false);
 
     view! {
-        <div class="dock" role="toolbar" aria-label="Audio controls">
-            <div class="dock-section">
+        <div
+            class="fixed bottom-0 left-0 right-0 flex items-center gap-2.5 px-4 py-2.5 bg-[rgba(10,10,10,0.94)] backdrop-blur-[20px] border-t border-white/[0.06] overflow-visible z-[100] flex-wrap justify-center"
+            role="toolbar"
+            aria-label="Audio controls"
+        >
+            // Play + Volume
+            <div class="flex items-center gap-1.5 shrink-0">
                 <button
-                    class="dock-btn play-btn"
+                    class="bg-transparent border border-white/[0.12] text-gray-200 w-[42px] h-[42px] rounded-full cursor-pointer text-base flex items-center justify-center transition-all duration-250 hover:border-cyan-400 hover:text-cyan-400 hover:shadow-[0_0_16px_rgba(0,206,209,0.35)] hover:scale-[1.08]"
                     aria-label="Toggle play/pause (Space)"
                     title="Play/Pause (Space)"
                     on:click={
@@ -53,8 +58,8 @@ pub fn Dock(
                     {move || if is_playing.get() { "\u{23F8}" } else { "\u{25B6}" }}
                 </button>
 
-                <div class="volume-control">
-                    <span class="vol-label">"Vol"</span>
+                <div class="flex items-center gap-1.5">
+                    <span class="text-[8px] text-white/25 uppercase tracking-[1px]">"Vol"</span>
                     <input
                         type="range"
                         min="0"
@@ -75,8 +80,9 @@ pub fn Dock(
                 </div>
             </div>
 
-            <div class="dock-section sources-section">
-                <span class="dock-label">"Add:"</span>
+            // Sources
+            <div class="flex items-center gap-1.5 shrink-0 flex-wrap justify-center">
+                <span class="text-[9px] text-white/30 uppercase tracking-[1.5px] font-medium">"Add:"</span>
                 {source_kinds
                     .into_iter()
                     .map(|(label, kind)| {
@@ -84,7 +90,7 @@ pub fn Dock(
                         let aria = format!("Add {} source", label);
                         view! {
                             <button
-                                class="dock-pill source-pill"
+                                class="bg-white/[0.03] border border-white/[0.08] text-[#b0b0b0] px-2.5 py-[5px] rounded-2xl text-[11px] font-mono cursor-pointer transition-all duration-200 whitespace-nowrap hover:bg-white/[0.07] hover:border-white/20 hover:text-white hover:-translate-y-px hover:shadow-[0_0_12px_rgba(255,255,255,0.08)]"
                                 style:border-color={kind.color()}
                                 aria-label=aria
                                 on:click=move |_| on_action.run(DockAction::AddSource(kind))
@@ -95,7 +101,7 @@ pub fn Dock(
                     })
                     .collect::<Vec<_>>()}
                 <button
-                    class="dock-pill remove-pill"
+                    class="bg-white/[0.03] border border-[rgba(255,80,80,0.25)] text-[rgba(255,80,80,0.6)] px-2.5 py-[5px] rounded-2xl text-[11px] font-mono cursor-pointer transition-all duration-200 whitespace-nowrap hover:border-[rgba(255,80,80,0.5)] hover:text-[#ff5050] hover:bg-[rgba(255,80,80,0.06)] hover:shadow-[0_0_12px_rgba(255,80,80,0.15)]"
                     aria-label="Remove last source"
                     on:click={
                         let on_action = on_action.clone();
@@ -106,10 +112,14 @@ pub fn Dock(
                 </button>
             </div>
 
-            <div class="dock-section">
+            // Binaural
+            <div class="flex items-center gap-1.5 shrink-0">
                 <button
-                    class="dock-pill binaural-pill"
-                    class:active={move || binaural_active.get()}
+                    class="px-2.5 py-[5px] rounded-2xl text-[11px] font-mono cursor-pointer transition-all duration-200 whitespace-nowrap border"
+                    style:background=move || if binaural_active.get() { "rgba(0,206,209,0.1)" } else { "rgba(255,255,255,0.03)" }
+                    style:border-color=move || if binaural_active.get() { "#00CED1" } else { "rgba(0,206,209,0.25)" }
+                    style:color=move || if binaural_active.get() { "#00CED1" } else { "#b0b0b0" }
+                    style:box-shadow=move || if binaural_active.get() { "0 0 12px rgba(0,206,209,0.25)" } else { "none" }
                     aria-label="Toggle binaural beats"
                     aria-pressed={move || binaural_active.get().to_string()}
                     on:click={
@@ -127,8 +137,9 @@ pub fn Dock(
                 </button>
             </div>
 
-            <div class="dock-section presets-section">
-                <span class="dock-label">"Presets:"</span>
+            // Presets
+            <div class="flex items-center gap-1.5 shrink-0 ml-auto">
+                <span class="text-[9px] text-white/30 uppercase tracking-[1.5px] font-medium">"Presets:"</span>
                 {preset_names
                     .into_iter()
                     .enumerate()
@@ -137,8 +148,11 @@ pub fn Dock(
                         let aria = format!("Load {} preset", name);
                         view! {
                             <button
-                                class="dock-pill preset-pill"
-                                class:active={move || active_preset.get() == Some(i)}
+                                class="px-2.5 py-[5px] rounded-2xl text-[11px] font-mono cursor-pointer transition-all duration-200 whitespace-nowrap border"
+                                style:background=move || if active_preset.get() == Some(i) { "rgba(147,112,219,0.12)" } else { "rgba(255,255,255,0.03)" }
+                                style:border-color=move || if active_preset.get() == Some(i) { "#9370db" } else { "rgba(147,112,219,0.25)" }
+                                style:color=move || if active_preset.get() == Some(i) { "#9370db" } else { "#b0b0b0" }
+                                style:box-shadow=move || if active_preset.get() == Some(i) { "0 0 14px rgba(147,112,219,0.3)" } else { "none" }
                                 aria-label=aria
                                 on:click=move |_| on_action.run(DockAction::LoadPreset(i))
                             >
@@ -149,35 +163,55 @@ pub fn Dock(
                     .collect::<Vec<_>>()}
             </div>
 
-            <div class="dock-section dock-right">
-                <div class="dock-dropdown">
-                    <button class="dock-pill me-pill" aria-label="Author links">"Me"</button>
-                    <div class="dock-dropdown-content">
-                        <a href="https://undivisible.dev" target="_blank" rel="noopener">"undivisible.dev"</a>
-                        <a href="https://atechnology.company" target="_blank" rel="noopener">"atechnology.company"</a>
+            // Me + About
+            <div class="flex items-center gap-1.5 shrink-0 ml-auto">
+                <div class="group relative">
+                    <button
+                        class="bg-white/[0.03] border border-[rgba(0,255,136,0.25)] text-[#b0b0b0] px-2.5 py-[5px] rounded-2xl text-[11px] font-mono cursor-pointer transition-all duration-200 whitespace-nowrap hover:border-[rgba(0,255,136,0.5)] hover:text-[#00ff88] hover:shadow-[0_0_12px_rgba(0,255,136,0.2)]"
+                        aria-label="Author links"
+                    >
+                        "Me"
+                    </button>
+                    <div class="hidden group-hover:block animate-slide-up absolute bottom-[calc(100%+8px)] right-0 min-w-[180px] bg-[rgba(14,14,14,0.97)] backdrop-blur-[20px] border border-white/[0.08] rounded-xl py-1.5 z-[200] shadow-[0_-8px_32px_rgba(0,0,0,0.6)] before:content-[''] before:absolute before:top-full before:left-0 before:right-0 before:h-2.5 before:bg-transparent">
+                        <a
+                            href="https://undivisible.dev"
+                            target="_blank"
+                            rel="noopener"
+                            class="block px-4 py-2 text-[#a0a0a0] no-underline text-xs font-mono transition-all duration-150 hover:text-cyan-400 hover:bg-[rgba(0,206,209,0.06)]"
+                        >
+                            "undivisible.dev"
+                        </a>
+                        <a
+                            href="https://atechnology.company"
+                            target="_blank"
+                            rel="noopener"
+                            class="block px-4 py-2 text-[#a0a0a0] no-underline text-xs font-mono transition-all duration-150 hover:text-cyan-400 hover:bg-[rgba(0,206,209,0.06)]"
+                        >
+                            "atechnology.company"
+                        </a>
                     </div>
                 </div>
 
-                <div class="dock-dropdown">
+                <div class="group relative">
                     <button
-                        class="dock-pill about-pill"
+                        class="bg-white/[0.03] border border-[rgba(255,215,0,0.25)] text-[#b0b0b0] px-2.5 py-[5px] rounded-2xl text-[11px] font-mono cursor-pointer transition-all duration-200 whitespace-nowrap hover:border-[rgba(255,215,0,0.5)] hover:text-[#ffd700] hover:shadow-[0_0_12px_rgba(255,215,0,0.2)]"
                         aria-label="About Bublik"
                         on:click=move |_| set_show_about.set(!show_about.get_untracked())
                     >
                         "About"
                     </button>
-                    <div class="dock-dropdown-content about-content">
-                        <div class="about-text">
-                            <p class="about-title">"bublik"</p>
+                    <div class="hidden group-hover:block animate-slide-up absolute bottom-[calc(100%+8px)] right-0 min-w-[300px] bg-[rgba(14,14,14,0.97)] backdrop-blur-[20px] border border-white/[0.08] rounded-xl z-[200] shadow-[0_-8px_32px_rgba(0,0,0,0.6)] before:content-[''] before:absolute before:top-full before:left-0 before:right-0 before:h-2.5 before:bg-transparent">
+                        <div class="px-5 py-4 text-[11px] leading-[1.7] text-white/55">
+                            <p class="text-[15px] font-semibold text-cyan-400 mb-2 tracking-[2px] lowercase">"bublik"</p>
                             <p>"A frequency terrain audio generator built with Leptos + Rust WASM. \
                                 All audio synthesis runs natively in the browser via the Web Audio API \u{2014} \
                                 no third-party audio libraries."</p>
-                            <p class="about-features">
+                            <p class="mt-2.5 text-[10px] text-white/35 leading-[1.8]">
                                 "Brown/pink/white noise \u{00B7} Theta/alpha/delta waves \u{00B7} \
                                  Binaural beats \u{00B7} Harmonic series \u{00B7} Rain textures \u{00B7} \
                                  Biquad filters \u{00B7} LFO modulation"
                             </p>
-                            <p class="about-hint">
+                            <p class="mt-3 text-[10px] text-cyan-400/45 italic">
                                 "Space = play/pause \u{00B7} Scroll = volume \u{00B7} \
                                  Drag orbs to shape sound \u{00B7} Hover orbs for filters"
                             </p>
