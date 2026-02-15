@@ -720,10 +720,10 @@ pub fn App() -> impl IntoView {
     ];
 
     view! {
-        <div class="fixed inset-0 w-full h-full">
+        <div class="fixed inset-0 w-full h-dvh">
             <canvas
                 node_ref=canvas_ref
-                class="absolute inset-0 w-full h-full block cursor-crosshair touch-none"
+                class="absolute inset-0 w-full h-dvh block cursor-crosshair touch-none"
                 on:mousedown=on_pointer_down
                 on:mousemove=on_pointer_move
                 on:mouseup=on_pointer_up
