@@ -405,8 +405,15 @@ impl SoundSource {
             self.gain_node.gain().set_value(self.gain);
             Ok(false)
         } else {
+            // For brainwave sources (Theta, Alpha, Delta), use carrier frequency (150Hz)
+            // instead of the modulation frequency (6-10Hz) which would be inaudible
+            let base_freq = match self.kind {
+                SourceKind::Theta | SourceKind::Alpha | SourceKind::Delta => 150.0,
+                _ => self.freq,
+            };
+            
             // Route binaural through gain_node so filters apply
-            let mut b = BinauralBeat::new(ctx, &self.gain_node, self.freq, beat_freq)?;
+            let mut b = BinauralBeat::new(ctx, &self.gain_node, base_freq, beat_freq)?;
             b.set_gain(1.0); // gain_node already controls volume
 
             // Mute normal source generators but keep gain_node active for binaural
@@ -480,6 +487,10 @@ impl SoundSource {
 
     pub fn filter_chain_mut(&mut self) -> &mut FilterChain {
         &mut self.filter_chain
+    }
+    
+    pub fn rebuild_filters(&mut self, ctx: &AudioContext, master: &GainNode) -> Result<(), JsValue> {
+        self.filter_chain.rebuild(ctx, &self.gain_node, &master.clone().into())
     }
 
     pub fn set_filter_cutoff(&mut self, freq: f32) {

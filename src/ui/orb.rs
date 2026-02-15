@@ -56,6 +56,22 @@ impl OrbData {
     pub fn update_radius(&mut self) {
         self.radius = 20.0 + self.gain as f64 * 30.0;
     }
+
+    /// Update pixel coordinates from normalized coordinates
+    pub fn update_position(&mut self, canvas_width: f64, canvas_height: f64) {
+        self.x = self.norm_x as f64 * canvas_width;
+        self.y = (1.0 - self.norm_y as f64) * canvas_height;
+    }
+
+    /// Get pixel X coordinate for current canvas width
+    pub fn pixel_x(&self, canvas_width: f64) -> f64 {
+        self.norm_x as f64 * canvas_width
+    }
+
+    /// Get pixel Y coordinate for current canvas height
+    pub fn pixel_y(&self, canvas_height: f64) -> f64 {
+        (1.0 - self.norm_y as f64) * canvas_height
+    }
 }
 
 pub fn hex_to_rgb(hex: &str) -> (u8, u8, u8) {
