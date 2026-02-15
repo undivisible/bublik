@@ -60,6 +60,7 @@ impl Default for FilterSpec {
 pub struct FilterChain {
     pub specs: Vec<FilterSpec>,
     nodes: Vec<BiquadFilterNode>,
+    last_output: Option<web_sys::AudioNode>,
 }
 
 impl FilterChain {
@@ -67,6 +68,7 @@ impl FilterChain {
         Self {
             specs: vec![FilterSpec::default()],
             nodes: Vec::new(),
+            last_output: None,
         }
     }
 
@@ -79,6 +81,7 @@ impl FilterChain {
                 enabled: true,
             }],
             nodes: Vec::new(),
+            last_output: None,
         }
     }
 
@@ -95,6 +98,7 @@ impl FilterChain {
 
         if active_specs.is_empty() {
             let node: AudioNode = input.clone().into();
+            self.last_output = Some(node.clone());
             return Ok(node);
         }
 
@@ -110,6 +114,7 @@ impl FilterChain {
             self.nodes.push(filter);
         }
 
+        self.last_output = Some(last_node.clone());
         Ok(last_node)
     }
 
@@ -159,15 +164,38 @@ impl FilterChain {
         }
     }
 
-    pub fn remove_filter_by_kind(&mut self, kind: FilterKind) {
-        if let Some(pos) = self.specs.iter().position(|s| s.kind == kind && s.enabled) {
-            self.specs.remove(pos);
-            // Remove corresponding node if it exists
-            if pos < self.nodes.len() {
-                let node = self.nodes.remove(pos);
-                let _ = node.disconnect();
-            }
+    /// Rebuilds the filter chain, disconnecting old nodes and creating new ones.
+    /// Should be called after adding/removing filters.
+    pub fn rebuild(
+        &mut self,
+        ctx: &AudioContext,
+        input: &GainNode,
+        master: &web_sys::AudioNode,
+    ) -> Result<(), JsValue> {
+        // Disconnect the last output from master
+        if let Some(ref old_output) = self.last_output {
+            let _ = old_output.disconnect();
         }
+        
+        // Disconnect all old filter nodes
+        for node in &self.nodes {
+            let _ = node.disconnect();
+        }
+        
+        // Build new chain and connect to master
+        let output = self.build(ctx, input)?;
+        output.connect_with_audio_node(master)?;
+        Ok(())
+    }
+
+    pub fn remove_filter_by_kind(&mut self, kind: FilterKind) {
+        self.specs.retain(|s| s.kind != kind || !s.enabled);
+        // Ensure we always have at least the default passthrough filter
+        if self.specs.is_empty() {
+            self.specs.push(FilterSpec::default());
+        }
+        // Note: The audio chain needs to be rebuilt after this call
+        // by calling rebuild() with the audio context
     }
 
     pub fn has_filter(&self, kind: FilterKind) -> bool {

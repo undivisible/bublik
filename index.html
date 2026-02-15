@@ -19,8 +19,11 @@
                             },
                         },
                         animation: {
-                            'fade-in': 'fadeIn 0.2s ease-out',
-                            'slide-up': 'slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+                            'fade-in': 'fadeIn 0.2s ease-out forwards',
+                            'fade-in-scale': 'fadeInScale 0.3s ease-out forwards',
+                            'pop-in': 'popIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards',
+                            'pop-out': 'popOut 0.25s ease-in forwards',
+                            'slide-up': 'slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards',
                             'pulse-glow': 'pulseGlow 2s ease-in-out infinite',
                             'breathe': 'breathe 4s ease-in-out infinite',
                         },
@@ -28,6 +31,19 @@
                             fadeIn: {
                                 '0%': { opacity: '0', transform: 'translate(-50%, 8px)' },
                                 '100%': { opacity: '1', transform: 'translate(-50%, 0)' },
+                            },
+                            fadeInScale: {
+                                '0%': { opacity: '0', transform: 'translate(-50%, -50%) scale(0.8)' },
+                                '100%': { opacity: '1', transform: 'translate(-50%, -50%) scale(1)' },
+                            },
+            popIn: {
+                                '0%': { opacity: '0', transform: 'translate(-50%, -50%) scale(0.3)', filter: 'blur(8px)' },
+                                '60%': { opacity: '1', transform: 'translate(-50%, -50%) scale(1.15)' },
+                                '100%': { opacity: '1', transform: 'translate(-50%, -50%) scale(1)', filter: 'blur(0)' },
+                            },
+                            popOut: {
+                                '0%': { opacity: '1', transform: 'translate(-50%, -50%) scale(1)' },
+                                '100%': { opacity: '0', transform: 'translate(-50%, -50%) scale(0.5)', filter: 'blur(4px)' },
                             },
                             slideUp: {
                                 '0%': { opacity: '0', transform: 'translateY(8px)' },

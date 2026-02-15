@@ -39,8 +39,13 @@ pub fn App() -> impl IntoView {
     let (orbs, set_orbs) = signal(Vec::<OrbData>::new());
     let (dragging_id, set_dragging_id) = signal(Option::<usize>::None);
     let (hovered_orb_id, set_hovered_orb_id) = signal(Option::<usize>::None);
+    let (pinned_menu_id, set_pinned_menu_id) = signal(Option::<usize>::None);
+    let (menu_visible_id, set_menu_visible_id) = signal(Option::<usize>::None);
+    let (menu_hiding, set_menu_hiding) = signal(false);
     let (is_hovering_menu, set_is_hovering_menu) = signal(false);
     let (active_preset, set_active_preset) = signal(Option::<usize>::None);
+    
+    let click_start_pos = StoredValue::new_local(Option::<(f64, f64)>::None);
 
     let next_id = StoredValue::new_local(0usize);
     let (anim_time, set_anim_time) = signal(0.0f64);
@@ -160,16 +165,24 @@ pub fn App() -> impl IntoView {
     // Render canvas each frame
     Effect::new(move |_| {
         let time = anim_time.get();
-        let current_orbs = orbs.get();
+        let mut current_orbs = orbs.get();
         let drag = dragging_id.get();
 
         if let Some(canvas) = get_canvas_el() {
+            let w = canvas.width() as f64;
+            let h = canvas.height() as f64;
+            
+            // Update all orb pixel positions from normalized coords
+            for orb in current_orbs.iter_mut() {
+                orb.update_position(w, h);
+            }
+            
             if let Ok(Some(ctx_obj)) = canvas.get_context("2d") {
                 if let Ok(ctx) = ctx_obj.dyn_into::<CanvasRenderingContext2d>() {
                     draw_terrain(
                         &ctx,
-                        canvas.width() as f64,
-                        canvas.height() as f64,
+                        w,
+                        h,
                         &current_orbs,
                         time,
                         drag,
@@ -314,6 +327,8 @@ pub fn App() -> impl IntoView {
     let toggle_orb_filter = move |id: usize, filter_kind: FilterKind| {
         engine.with_value(|cell| {
             if let Some(ref mut eng) = *cell.borrow_mut() {
+                let ctx = eng.context().clone();
+                let master = eng.master_gain_node().clone();
                 let current_orbs = orbs.get_untracked();
                 if let Some(idx) = current_orbs.iter().position(|o| o.id == id) {
                     let orb = &current_orbs[idx];
@@ -323,6 +338,7 @@ pub fn App() -> impl IntoView {
                         if already_active {
                             // Remove this filter
                             source.filter_chain_mut().remove_filter_by_kind(filter_kind);
+                            let _ = source.rebuild_filters(&ctx, &master);
                             set_orbs.update(|o| {
                                 if let Some(orb) = o.get_mut(idx) {
                                     orb.active_filters.retain(|&f| f != filter_kind);
@@ -347,6 +363,7 @@ pub fn App() -> impl IntoView {
                                 }
                             };
                             source.filter_chain_mut().add_filter(filter_kind, freq, q);
+                            let _ = source.rebuild_filters(&ctx, &master);
                             set_orbs.update(|o| {
                                 if let Some(orb) = o.get_mut(idx) {
                                     orb.active_filters.push(filter_kind);
@@ -533,6 +550,8 @@ pub fn App() -> impl IntoView {
             let rect = canvas.get_bounding_client_rect();
             let px = ev.client_x() as f64 - rect.left();
             let py = ev.client_y() as f64 - rect.top();
+            
+            click_start_pos.set_value(Some((px, py)));
 
             let current_orbs = orbs.get_untracked();
             for orb in current_orbs.iter().rev() {
@@ -546,6 +565,18 @@ pub fn App() -> impl IntoView {
             // Clicked on empty canvas — dismiss any open menu
             set_hovered_orb_id.set(None);
             set_is_hovering_menu.set(false);
+            // Close pinned menu when clicking outside
+            if pinned_menu_id.get_untracked().is_some() {
+                set_menu_hiding.set(true);
+                set_pinned_menu_id.set(None);
+                set_timeout(
+                    move || {
+                        set_menu_visible_id.set(None);
+                        set_menu_hiding.set(false);
+                    },
+                    std::time::Duration::from_millis(250),
+                );
+            }
         }
     };
 
@@ -607,30 +638,87 @@ pub fn App() -> impl IntoView {
                 }
 
                 if found.is_some() {
+                    set_menu_hiding.set(false);
                     set_hovered_orb_id.set(found);
-                } else if !is_hovering_menu.get_untracked() {
-                    // Keep hover alive if mouse is in approach zone above the hovered orb
-                    // (bridging the gap between orb and menu buttons)
+                    // Only update menu_visible_id if no pinned menu
+                    if pinned_menu_id.get_untracked().is_none() {
+                        set_menu_visible_id.set(found);
+                    }
+                } else if !is_hovering_menu.get_untracked() && pinned_menu_id.get_untracked().is_none() {
+                    // Keep hover alive if mouse is in approach zone around the hovered orb
+                    // (covering the entire orbital menu area)
                     let in_approach = hovered_orb_id
                         .get_untracked()
                         .and_then(|hid| current_orbs.iter().find(|o| o.id == hid))
                         .is_some_and(|orb| {
-                            let dx = (px - orb.x).abs();
-                            let dy = orb.y - py; // positive = above orb
-                            dx < 100.0 && dy > 0.0 && dy < orb.radius as f64 + 100.0
+                            let dx = px - orb.x;
+                            let dy = py - orb.y;
+                            let distance = (dx * dx + dy * dy).sqrt();
+                            let orbit_distance = orb.radius as f64 * 3.2;
+                            // Keep menu alive if within a large circular area around the orb
+                            distance < orbit_distance * 1.5
                         });
-                    if !in_approach {
+                    if !in_approach && hovered_orb_id.get_untracked().is_some() {
                         set_hovered_orb_id.set(None);
+                        set_menu_hiding.set(true);
+                        // Delay clearing menu_visible_id to allow fade-out animation
+                        set_timeout(
+                            move || {
+                                set_menu_visible_id.set(None);
+                                set_menu_hiding.set(false);
+                            },
+                            std::time::Duration::from_millis(250),
+                        );
                     }
                 }
             }
         }
     };
 
-    let on_pointer_up = move |_ev: MouseEvent| {
-        if dragging_id.get_untracked().is_some() {
+    let on_pointer_up = move |ev: MouseEvent| {
+        let was_dragging = dragging_id.get_untracked();
+        if was_dragging.is_some() {
+            // Check if this was a drag or a click
+            if let Some((start_x, start_y)) = click_start_pos.get_value() {
+                if let Some(canvas) = get_canvas_el() {
+                    let rect = canvas.get_bounding_client_rect();
+                    let end_x = ev.client_x() as f64 - rect.left();
+                    let end_y = ev.client_y() as f64 - rect.top();
+                    
+                    let dx = end_x - start_x;
+                    let dy = end_y - start_y;
+                    let distance = (dx * dx + dy * dy).sqrt();
+                    
+                    // If moved less than 5 pixels, treat as a click
+                    if distance < 5.0 {
+                        if let Some(clicked_id) = was_dragging {
+                            // Toggle pinned menu
+                            if pinned_menu_id.get_untracked() == Some(clicked_id) {
+                                // Close the menu
+                                set_menu_hiding.set(true);
+                                set_pinned_menu_id.set(None);
+                                set_timeout(
+                                    move || {
+                                        set_menu_visible_id.set(None);
+                                        set_menu_hiding.set(false);
+                                    },
+                                    std::time::Duration::from_millis(250),
+                                );
+                            } else {
+                                // Open/switch pinned menu
+                                set_menu_hiding.set(false);
+                                set_pinned_menu_id.set(Some(clicked_id));
+                                set_menu_visible_id.set(Some(clicked_id));
+                            }
+                        }
+                    } else {
+                        // It was a drag, save the session
+                        save_session();
+                    }
+                }
+            }
             set_dragging_id.set(None);
-            save_session();
+            click_start_pos.set_value(None);
         }
     };
 
@@ -642,6 +730,8 @@ pub fn App() -> impl IntoView {
                 let rect = canvas.get_bounding_client_rect();
                 let px = touch.client_x() as f64 - rect.left();
                 let py = touch.client_y() as f64 - rect.top();
+                
+                click_start_pos.set_value(Some((px, py)));
 
                 let current_orbs = orbs.get_untracked();
                 for orb in current_orbs.iter().rev() {
@@ -650,6 +740,18 @@ pub fn App() -> impl IntoView {
                         set_hovered_orb_id.set(None);
                         return;
                     }
+                }
+                // Tapped on empty canvas — dismiss any open menu
+                if pinned_menu_id.get_untracked().is_some() {
+                    set_menu_hiding.set(true);
+                    set_pinned_menu_id.set(None);
+                    set_timeout(
+                        move || {
+                            set_menu_visible_id.set(None);
+                            set_menu_hiding.set(false);
+                        },
+                        std::time::Duration::from_millis(250),
+                    );
                 }
             }
         }
@@ -704,10 +806,52 @@ pub fn App() -> impl IntoView {
         }
     };
 
-    let on_touch_end = move |_ev: TouchEvent| {
-        if dragging_id.get_untracked().is_some() {
+    let on_touch_end = move |ev: TouchEvent| {
+        let was_dragging = dragging_id.get_untracked();
+        if was_dragging.is_some() {
+            // Check if this was a drag or a tap
+            if let Some((start_x, start_y)) = click_start_pos.get_value() {
+                if let Some(touch) = ev.changed_touches().item(0) {
+                    if let Some(canvas) = get_canvas_el() {
+                        let rect = canvas.get_bounding_client_rect();
+                        let end_x = touch.client_x() as f64 - rect.left();
+                        let end_y = touch.client_y() as f64 - rect.top();
+                        
+                        let dx = end_x - start_x;
+                        let dy = end_y - start_y;
+                        let distance = (dx * dx + dy * dy).sqrt();
+                        
+                        // If moved less than 5 pixels, treat as a tap
+                        if distance < 5.0 {
+                            if let Some(tapped_id) = was_dragging {
+                                // Toggle pinned menu
+                                if pinned_menu_id.get_untracked() == Some(tapped_id) {
+                                    // Close the menu
+                                    set_menu_hiding.set(true);
+                                    set_pinned_menu_id.set(None);
+                                    set_timeout(
+                                        move || {
+                                            set_menu_visible_id.set(None);
+                                            set_menu_hiding.set(false);
+                                        },
+                                        std::time::Duration::from_millis(250),
+                                    );
+                                } else {
+                                    // Open/switch pinned menu
+                                    set_menu_hiding.set(false);
+                                    set_pinned_menu_id.set(Some(tapped_id));
+                                    set_menu_visible_id.set(Some(tapped_id));
+                                }
+                            }
+                        } else {
+                            // It was a drag, save the session
+                            save_session();
+                        }
+                    }
+                }
+            }
             set_dragging_id.set(None);
-            save_session();
+            click_start_pos.set_value(None);
         }
     };
 
@@ -733,90 +877,165 @@ pub fn App() -> impl IntoView {
                 on:touchend=on_touch_end
             />
 
-            // Orb Hover Menu
+            // Orb Hover Menu - Orbital button layout with smooth transitions and curved buttons
             {move || {
-                hovered_orb_id.get().and_then(|id| {
-                    orbs.get().iter().find(|o| o.id == id).map(|orb| {
-                        let menu_top = orb.y - orb.radius - 15.0;
-                        let left = orb.x;
-                        let is_binaural = orb.binaural_active;
-                        let current_filters = orb.active_filters.clone();
+                menu_visible_id.get().and_then(|id| {
+                    orbs.with(|orbs_vec| {
+                        orbs_vec.iter().find(|o| o.id == id).map(|orb| {
+                            let w = get_canvas_el().map(|c| c.width() as f64).unwrap_or(800.0);
+                            let h = get_canvas_el().map(|c| c.height() as f64).unwrap_or(500.0);
+                            let screen_x = orb.pixel_x(w);
+                            let screen_y = orb.pixel_y(h);
+                            let screen_r = orb.radius;
+                            let is_binaural = orb.binaural_active;
+                            let current_filters = orb.active_filters.clone();
 
-                        view! {
-                            <div
-                                class="animate-fade-in absolute z-50 pointer-events-auto"
-                                style:top=format!("{}px", menu_top)
-                                style:left=format!("{}px", left)
-                                style:transform="translate(-50%, -100%)"
-                                on:mouseenter=move |_| set_is_hovering_menu.set(true)
-                                on:mouseleave=move |_| {
-                                    set_is_hovering_menu.set(false);
-                                }
-                                on:mousedown=move |ev: MouseEvent| {
-                                    ev.stop_propagation();
-                                }
-                            >
-                                <div class="flex flex-col items-center gap-1">
-                                    // Filter buttons row
-                                    <div class="flex gap-1">
-                                        {filter_kinds
-                                            .iter()
-                                            .map(|(fk, label)| {
-                                                let fk = *fk;
-                                                let is_active = current_filters.contains(&fk);
-                                                let border_color = fk.color();
-                                                view! {
-                                                    <button
-                                                        class="rounded-[10px] tracking-[0.5px] font-medium text-[9px] px-1.5 py-[3px] cursor-pointer backdrop-blur-sm font-mono whitespace-nowrap transition-all duration-200"
-                                                        style:background=move || {
-                                                            if is_active {
-                                                                format!("{}22", border_color)
-                                                            } else {
-                                                                "rgba(0,0,0,0.8)".into()
-                                                            }
+                            // Calculate orbital positions for buttons
+                            let orbit_radius = screen_r * 3.2;
+                            let filter_count = filter_kinds.len();
+                            
+                            view! {
+                                <div
+                                    class="absolute z-50 pointer-events-auto transition-all duration-150 ease-out"
+                                    style:left=format!("{}px", screen_x)
+                                    style:top=format!("{}px", screen_y)
+                                    on:mouseenter=move |_| set_is_hovering_menu.set(true)
+                                    on:mouseleave=move |_| set_is_hovering_menu.set(false)
+                                    on:touchstart=move |_| set_is_hovering_menu.set(true)
+                                >
+                                    // Filter buttons in curved orbital arrangement with rotation
+                                    {filter_kinds
+                                        .iter()
+                                        .enumerate()
+                                        .map(|(idx, (fk, label))| {
+                                            let fk = *fk;
+                                            let is_active = current_filters.contains(&fk);
+                                            let border_color = fk.color();
+                                            
+                                            // Calculate angle for this button (arc from 150° to 30°)
+                                            let start_angle = 150.0_f64.to_radians();
+                                            let end_angle = 30.0_f64.to_radians();
+                                            let angle = start_angle - (start_angle - end_angle) * (idx as f64 / (filter_count - 1).max(1) as f64);
+                                            let btn_x = angle.cos() * orbit_radius;
+                                            let btn_y = -angle.sin() * orbit_radius;
+                                            
+                                            let anim_class = if menu_hiding.get() {
+                                                "animate-pop-out"
+                                            } else {
+                                                "animate-pop-in"
+                                            };
+                                            view! {
+                                                <button
+                                                    class=format!("absolute pointer-events-auto tracking-[0.5px] font-medium text-[10px] md:text-[9px] px-3 py-1.5 md:px-2.5 md:py-1 cursor-pointer backdrop-blur-xl font-mono whitespace-nowrap transition-all duration-300 hover:scale-110 {} opacity-0", anim_class)
+                                                    style:left=format!("{}px", btn_x)
+                                                    style:top=format!("{}px", btn_y)
+                                                    style:transform="translate(-50%, -50%)"
+                                                    style:border-radius="25px"
+                                                    style:animation-delay=format!("{}ms", if menu_hiding.get() { 0 } else { idx * 40 })
+                                                    style:background=move || {
+                                                        if is_active {
+                                                            format!("{}55", border_color)
+                                                        } else {
+                                                            "rgba(10,10,10,0.92)".into()
                                                         }
-                                                        style:border=move || {
-                                                            if is_active {
-                                                                format!("1px solid {}", border_color)
-                                                            } else {
-                                                                "1px solid rgba(255,255,255,0.2)".into()
-                                                            }
+                                                    }
+                                                    style:border=move || {
+                                                        if is_active {
+                                                            format!("2px solid {}", border_color)
+                                                        } else {
+                                                            "1px solid rgba(255,255,255,0.2)".into()
                                                         }
-                                                        style:color=move || {
-                                                            if is_active {
-                                                                border_color.to_string()
-                                                            } else {
-                                                                "rgba(255,255,255,0.6)".into()
-                                                            }
+                                                    }
+                                                    style:color=move || {
+                                                        if is_active {
+                                                            border_color.to_string()
+                                                        } else {
+                                                            "rgba(255,255,255,0.75)".into()
                                                         }
-                                                        on:click=move |_| toggle_orb_filter(id, fk)
-                                                    >
-                                                        {*label}
-                                                    </button>
+                                                    }
+                                                    style:box-shadow=move || {
+                                                        if is_active {
+                                                            format!("0 0 20px {}80, 0 4px 12px rgba(0,0,0,0.6)", border_color)
+                                                        } else {
+                                                            "0 4px 12px rgba(0,0,0,0.6)".into()
+                                                        }
+                                                    }
+                                                    on:mousedown=move |ev: MouseEvent| {
+                                                        ev.stop_propagation();
+                                                    }
+                                                    on:click=move |ev: MouseEvent| {
+                                                        ev.stop_propagation();
+                                                        toggle_orb_filter(id, fk);
+                                                    }
+                                                >
+                                                    {*label}
+                                                </button>
+                                            }
+                                        })
+                                        .collect::<Vec<_>>()}
+                                    
+                                    // Action buttons at bottom with impressive pop-in/out animations
+                                    {
+                                        let anim_class = if menu_hiding.get() {
+                                            "animate-pop-out"
+                                        } else {
+                                            "animate-pop-in"
+                                        };
+                                        view! {
+                                            <button
+                                                class=format!("absolute pointer-events-auto text-[11px] md:text-[10px] px-3.5 py-1.5 md:px-3 md:py-1 bg-black/95 backdrop-blur-xl font-mono cursor-pointer whitespace-nowrap transition-all duration-300 hover:scale-105 {} opacity-0", anim_class)
+                                                style:left=format!("{}px", 330.0_f64.to_radians().cos() * orbit_radius)
+                                                style:top=format!("{}px", -330.0_f64.to_radians().sin() * orbit_radius)
+                                                style:transform="translate(-50%, -50%)"
+                                                style:border-radius="25px"
+                                                style:animation-delay=if menu_hiding.get() { "0ms" } else { "320ms" }
+                                        style:border=move || if is_binaural { "2px solid #00CED1" } else { "1px solid rgba(255,255,255,0.2)" }
+                                        style:color=move || if is_binaural { "#00CED1" } else { "rgba(255,255,255,0.7)" }
+                                        style:box-shadow=move || if is_binaural { "0 0 20px rgba(0,206,209,0.7), 0 4px 12px rgba(0,0,0,0.6)" } else { "0 4px 12px rgba(0,0,0,0.6)" }
+                                        on:mousedown=move |ev: MouseEvent| {
+                                            ev.stop_propagation();
+                                        }
+                                        on:click=move |ev: MouseEvent| {
+                                            ev.stop_propagation();
+                                            toggle_orb_binaural(id);
+                                        }
+                                    >
+                                                "Binaural"
+                                            </button>
+                                        }
+                                    }
+                                    {
+                                        let anim_class = if menu_hiding.get() {
+                                            "animate-pop-out"
+                                        } else {
+                                            "animate-pop-in"
+                                        };
+                                        view! {
+                                            <button
+                                                class=format!("absolute pointer-events-auto text-[11px] md:text-[10px] px-3.5 py-1.5 md:px-3 md:py-1 bg-black/95 backdrop-blur-xl font-mono cursor-pointer whitespace-nowrap transition-all duration-300 hover:scale-105 hover:border-red-500/60 hover:text-red-400 {} opacity-0", anim_class)
+                                                style:left=format!("{}px", 210.0_f64.to_radians().cos() * orbit_radius)
+                                                style:top=format!("{}px", -210.0_f64.to_radians().sin() * orbit_radius)
+                                                style:transform="translate(-50%, -50%)"
+                                                style:border-radius="25px"
+                                                style:animation-delay=if menu_hiding.get() { "0ms" } else { "360ms" }
+                                                style:border="1px solid rgba(255,80,80,0.3)"
+                                                style:color="rgba(255,100,100,0.8)"
+                                                style:box-shadow="0 4px 12px rgba(0,0,0,0.6)"
+                                                on:mousedown=move |ev: MouseEvent| {
+                                                    ev.stop_propagation();
                                                 }
-                                            })
-                                            .collect::<Vec<_>>()}
-                                    </div>
-                                    // Action buttons row
-                                    <div class="flex gap-1">
-                                        <button
-                                            class="text-[10px] px-2 py-1 bg-black/80 backdrop-blur-sm rounded-2xl font-mono cursor-pointer whitespace-nowrap transition-all duration-200"
-                                            style:border=move || if is_binaural { "1px solid #00CED1" } else { "1px solid rgba(255,255,255,0.2)" }
-                                            style:color=move || if is_binaural { "#00CED1" } else { "#b0b0b0" }
-                                            on:click=move |_| toggle_orb_binaural(id)
-                                        >
-                                            "Binaural"
-                                        </button>
-                                        <button
-                                            class="text-[10px] px-2 py-1 bg-black/80 backdrop-blur-sm border border-[rgba(255,80,80,0.25)] text-[rgba(255,80,80,0.6)] rounded-2xl font-mono cursor-pointer whitespace-nowrap transition-all duration-200 hover:border-[rgba(255,80,80,0.5)] hover:text-[#ff5050]"
-                                            on:click=move |_| remove_source_by_id(id)
-                                        >
-                                            "Delete"
-                                        </button>
-                                    </div>
+                                                on:click=move |ev: MouseEvent| {
+                                                    ev.stop_propagation();
+                                                    remove_source_by_id(id);
+                                                }
+                                            >
+                                                "Delete"
+                                            </button>
+                                        }
+                                    }
                                 </div>
-                            </div>
-                        }
+                            }
+                        })
                     })
                 })
             }}

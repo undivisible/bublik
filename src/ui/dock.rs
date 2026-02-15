@@ -40,7 +40,7 @@ pub fn Dock(
 
     view! {
         <div
-            class="fixed bottom-0 left-0 right-0 flex items-center gap-2.5 px-4 py-2.5 bg-[rgba(10,10,10,0.94)] backdrop-blur-[20px] border-t border-white/[0.06] overflow-visible z-[100] flex-wrap justify-center"
+            class="fixed bottom-0 left-0 right-0 flex items-center gap-2.5 px-4 pt-2.5 pb-[calc(10px+env(safe-area-inset-bottom,0px))] bg-[rgba(10,10,10,0.94)] backdrop-blur-[20px] border-t border-white/[0.06] overflow-x-auto no-scrollbar z-[100] flex-nowrap md:flex-wrap md:justify-center"
             role="toolbar"
             aria-label="Audio controls"
         >
@@ -55,7 +55,19 @@ pub fn Dock(
                         move |_| on_action.run(DockAction::TogglePlay)
                     }
                 >
-                    {move || if is_playing.get() { "\u{23F8}" } else { "\u{25B6}" }}
+                    {move || if is_playing.get() {
+                        view! {
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                                <path d="M6 4h4v16H6zm8 0h4v16h-4z" />
+                            </svg>
+                        }.into_any()
+                    } else {
+                        view! {
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                                <path d="M8 5v14l11-7z" />
+                            </svg>
+                        }.into_any()
+                    }}
                 </button>
 
                 <div class="flex items-center gap-1.5">
@@ -81,7 +93,7 @@ pub fn Dock(
             </div>
 
             // Sources
-            <div class="flex items-center gap-1.5 shrink-0 flex-wrap justify-center">
+            <div class="flex items-center gap-1.5 shrink-0 flex-wrap justify-center max-w-full md:max-w-none">
                 <span class="text-[9px] text-white/30 uppercase tracking-[1.5px] font-medium">"Add:"</span>
                 {source_kinds
                     .into_iter()
@@ -138,7 +150,7 @@ pub fn Dock(
             </div>
 
             // Presets
-            <div class="flex items-center gap-1.5 shrink-0 ml-auto">
+            <div class="flex items-center gap-1.5 shrink-0 ml-0 md:ml-auto">
                 <span class="text-[9px] text-white/30 uppercase tracking-[1.5px] font-medium">"Presets:"</span>
                 {preset_names
                     .into_iter()
@@ -164,7 +176,7 @@ pub fn Dock(
             </div>
 
             // Me + About
-            <div class="flex items-center gap-1.5 shrink-0 ml-auto">
+            <div class="flex items-center gap-1.5 shrink-0 ml-0 md:ml-auto">
                 <div class="group relative">
                     <button
                         class="bg-white/[0.03] border border-[rgba(0,255,136,0.25)] text-[#b0b0b0] px-2.5 py-[5px] rounded-2xl text-[11px] font-mono cursor-pointer transition-all duration-200 whitespace-nowrap hover:border-[rgba(0,255,136,0.5)] hover:text-[#00ff88] hover:shadow-[0_0_12px_rgba(0,255,136,0.2)]"
