@@ -41,7 +41,7 @@ pub fn Dock(
 
     view! {
         <div
-            class="fixed bottom-0 left-0 right-0 flex items-center gap-2.5 px-4 pt-2.5 pb-[calc(10px+env(safe-area-inset-bottom,0px))] bg-[rgba(10,10,10,0.94)] backdrop-blur-[20px] border-t border-white/[0.06] overflow-x-auto no-scrollbar z-[100] flex-nowrap md:flex-wrap md:justify-center"
+            class="fixed bottom-0 left-0 right-0 flex items-center gap-2.5 px-4 pt-2.5 pb-[calc(10px+env(safe-area-inset-bottom,0px))] bg-[rgba(10,10,10,0.94)] backdrop-blur-[20px] border-t border-white/[0.06] overflow-x-auto overflow-y-visible no-scrollbar z-[100] flex-nowrap md:flex-wrap md:justify-center"
             role="toolbar"
             aria-label="Audio controls"
         >
