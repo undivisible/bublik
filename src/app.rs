@@ -864,7 +864,7 @@ pub fn App() -> impl IntoView {
     ];
 
     view! {
-        <div class="fixed inset-0 w-full h-full">
+        <div class="fixed inset-0 w-full h-full z-[1]">
             <canvas
                 node_ref=canvas_ref
                 class="absolute inset-0 w-full h-full block cursor-crosshair touch-none"
