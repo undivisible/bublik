@@ -61,7 +61,7 @@ impl AudioEngine {
     }
 
     pub fn resume(&mut self) -> Result<(), JsValue> {
-        if self.ctx.state() == web_sys::AudioContextState::Suspended {
+        if self.ctx.state() != web_sys::AudioContextState::Running {
             let _ = self.ctx.resume()?;
         }
         self.playing = true;
