@@ -62,6 +62,10 @@ pub fn App() -> impl IntoView {
             let mut eng = cell.borrow_mut();
             if eng.is_none() {
                 if let Ok(e) = AudioEngine::new() {
+                    // Unlock AudioContext during user gesture for mobile browsers
+                    if e.context().state() == web_sys::AudioContextState::Suspended {
+                        let _ = e.context().resume();
+                    }
                     *eng = Some(e);
                 }
             }
