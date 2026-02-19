@@ -234,7 +234,7 @@ pub fn Dock(
                                 no third-party audio libraries."</p>
                             <p class="mt-2.5 text-[10px] text-white/35 leading-[1.8]">
                                 "Brown/pink/white noise \u{00B7} Theta/alpha/delta waves \u{00B7} \
-                                 Binaural beats \u{00B7} Harmonic series \u{00B7} Rain textures \u{00B7} \
+                                 Binaural beats \u{00B7} Harmonic series \u{00B7} Rain/leaves/wind textures \u{00B7} \
                                  Biquad filters \u{00B7} LFO modulation"
                             </p>
                             <p class="mt-3 text-[10px] text-cyan-400/45 italic">

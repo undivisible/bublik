@@ -153,6 +153,106 @@ pub fn built_in_presets() -> Vec<Preset> {
             }),
             master_volume: 0.6,
         },
+        Preset {
+            name: "Light Synth Bloom".into(),
+            sources: vec![
+                PresetSource {
+                    kind: SourceKind::CustomOsc(523.25),
+                    gain: 0.18,
+                    x: 0.52,
+                    y: 0.18,
+                    filter_kind: Some(FilterKind::Lowpass),
+                    filter_freq: Some(2400.0),
+                    filter_q: Some(0.8),
+                },
+                PresetSource {
+                    kind: SourceKind::Harmonic(261.63),
+                    gain: 0.12,
+                    x: 0.26,
+                    y: 0.16,
+                    filter_kind: Some(FilterKind::Lowpass),
+                    filter_freq: Some(1800.0),
+                    filter_q: Some(1.0),
+                },
+            ],
+            binaural: None,
+            master_volume: 0.55,
+        },
+        Preset {
+            name: "Rustling Leaves".into(),
+            sources: vec![
+                PresetSource {
+                    kind: SourceKind::WhiteNoise,
+                    gain: 0.24,
+                    x: 0.72,
+                    y: 0.24,
+                    filter_kind: Some(FilterKind::Bandpass),
+                    filter_freq: Some(3200.0),
+                    filter_q: Some(1.4),
+                },
+                PresetSource {
+                    kind: SourceKind::PinkNoise,
+                    gain: 0.14,
+                    x: 0.54,
+                    y: 0.14,
+                    filter_kind: Some(FilterKind::Highpass),
+                    filter_freq: Some(1400.0),
+                    filter_q: Some(0.8),
+                },
+            ],
+            binaural: None,
+            master_volume: 0.5,
+        },
+        Preset {
+            name: "Forest Wind".into(),
+            sources: vec![
+                PresetSource {
+                    kind: SourceKind::BrownNoise,
+                    gain: 0.22,
+                    x: 0.32,
+                    y: 0.22,
+                    filter_kind: Some(FilterKind::Bandpass),
+                    filter_freq: Some(420.0),
+                    filter_q: Some(0.7),
+                },
+                PresetSource {
+                    kind: SourceKind::WhiteNoise,
+                    gain: 0.08,
+                    x: 0.66,
+                    y: 0.08,
+                    filter_kind: Some(FilterKind::Highpass),
+                    filter_freq: Some(2400.0),
+                    filter_q: Some(0.7),
+                },
+            ],
+            binaural: None,
+            master_volume: 0.45,
+        },
+        Preset {
+            name: "Creekside".into(),
+            sources: vec![
+                PresetSource {
+                    kind: SourceKind::RainTexture,
+                    gain: 0.3,
+                    x: 0.45,
+                    y: 0.3,
+                    filter_kind: Some(FilterKind::Highpass),
+                    filter_freq: Some(350.0),
+                    filter_q: Some(0.9),
+                },
+                PresetSource {
+                    kind: SourceKind::PinkNoise,
+                    gain: 0.12,
+                    x: 0.58,
+                    y: 0.12,
+                    filter_kind: Some(FilterKind::Bandpass),
+                    filter_freq: Some(1600.0),
+                    filter_q: Some(1.6),
+                },
+            ],
+            binaural: None,
+            master_volume: 0.5,
+        },
     ]
 }
 
@@ -233,5 +333,13 @@ mod tests {
                 assert!(source.y >= 0.0 && source.y <= 1.0);
             }
         }
+    }
+
+    #[test]
+    fn test_built_in_presets_include_synth_and_nature() {
+        let preset_names: Vec<String> = built_in_presets().into_iter().map(|p| p.name).collect();
+        assert!(preset_names.iter().any(|name| name.contains("Synth")));
+        assert!(preset_names.iter().any(|name| name.contains("Leaves")));
+        assert!(preset_names.iter().any(|name| name.contains("Forest")));
     }
 }
