@@ -33,7 +33,7 @@ fn default_position(kind: SourceKind) -> (f32, f32) {
 
 #[component]
 pub fn App() -> impl IntoView {
-    let (is_playing, set_is_playing) = signal(false);
+    let (is_playing, set_is_playing) = signal(true);
     let (master_vol, set_master_vol) = signal(0.7f32);
     let (binaural_active, set_binaural_active) = signal(false);
     let (orbs, set_orbs) = signal(Vec::<OrbData>::new());
@@ -544,8 +544,19 @@ pub fn App() -> impl IntoView {
         save_session();
     });
 
+    let unlock_audio = move || {
+        engine.with_value(|cell| {
+            if let Some(ref mut eng) = *cell.borrow_mut() {
+                if eng.is_playing() && eng.context().state() == web_sys::AudioContextState::Suspended {
+                    let _ = eng.context().resume();
+                }
+            }
+        });
+    };
+
     // Mouse handlers for dragging orbs
     let on_pointer_down = move |ev: MouseEvent| {
+        unlock_audio();
         if let Some(canvas) = get_canvas_el() {
             let rect = canvas.get_bounding_client_rect();
             let px = ev.client_x() as f64 - rect.left();
@@ -724,6 +735,7 @@ pub fn App() -> impl IntoView {
 
     // Touch handlers
     let on_touch_start = move |ev: TouchEvent| {
+        unlock_audio();
         ev.prevent_default();
         if let Some(touch) = ev.touches().item(0) {
             if let Some(canvas) = get_canvas_el() {
