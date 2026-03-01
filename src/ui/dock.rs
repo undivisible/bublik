@@ -36,12 +36,12 @@ pub fn Dock(
 
     let preset_names: Vec<String> = presets.iter().map(|p| p.name.clone()).collect();
 
+    let (show_about, set_show_about) = signal(false);
+    let (show_me, set_show_me) = signal(false);
+
     view! {
         <div
-            class="fixed bottom-0 left-0 right-0 flex items-center gap-2.5 px-4 pt-2.5 pb-[calc(10px+env(safe-area-inset-bottom,0px))] bg-[rgba(10,10,10,0.94)] border-t border-white/[0.06] z-[100] flex-wrap justify-center"
-            style:z-index="1000"
-            style:overflow="visible"
-            style:isolation="isolate"
+            class="fixed bottom-0 left-0 right-0 flex items-center gap-2.5 px-4 pt-2.5 pb-[calc(10px+env(safe-area-inset-bottom,0px))] bg-[rgba(10,10,10,0.94)] backdrop-blur-[20px] border-t border-white/[0.06] overflow-x-auto overflow-y-visible no-scrollbar z-[100] flex-nowrap md:flex-wrap md:justify-center"
             role="toolbar"
             aria-label="Audio controls"
         >
@@ -178,14 +178,21 @@ pub fn Dock(
 
             // Me + About
             <div class="flex items-center gap-1.5 shrink-0 ml-0 md:ml-auto">
-                <div class="group relative">
+                <div class="relative">
                     <button
                         class="bg-white/[0.03] border border-[rgba(0,255,136,0.25)] text-[#b0b0b0] px-2.5 py-[5px] rounded-2xl text-[11px] font-mono cursor-pointer transition-all duration-200 whitespace-nowrap hover:border-[rgba(0,255,136,0.5)] hover:text-[#00ff88] hover:shadow-[0_0_12px_rgba(0,255,136,0.2)]"
                         aria-label="Author links"
+                        on:click=move |_| {
+                            set_show_me.set(!show_me.get_untracked());
+                            set_show_about.set(false);
+                        }
                     >
                         "Me"
                     </button>
-                    <div class="hidden group-hover:block animate-slide-up absolute bottom-[calc(100%+8px)] right-0 min-w-[180px] bg-[rgba(14,14,14,0.97)] backdrop-blur-[20px] border border-white/[0.08] rounded-xl py-1.5 z-[200] shadow-[0_-8px_32px_rgba(0,0,0,0.6)] before:content-[''] before:absolute before:top-full before:left-0 before:right-0 before:h-2.5 before:bg-transparent" style:z-index="1100">
+                    <div
+                        class="animate-slide-up absolute bottom-[calc(100%+8px)] right-0 min-w-[180px] bg-[rgba(14,14,14,0.97)] backdrop-blur-[20px] border border-white/[0.08] rounded-xl py-1.5 z-[200] shadow-[0_-8px_32px_rgba(0,0,0,0.6)]"
+                        style:display=move || if show_me.get() { "block" } else { "none" }
+                    >
                         <a
                             href="https://undivisible.dev"
                             target="_blank"
@@ -205,14 +212,21 @@ pub fn Dock(
                     </div>
                 </div>
 
-                <div class="group relative">
+                <div class="relative">
                     <button
                         class="bg-white/[0.03] border border-[rgba(255,215,0,0.25)] text-[#b0b0b0] px-2.5 py-[5px] rounded-2xl text-[11px] font-mono cursor-pointer transition-all duration-200 whitespace-nowrap hover:border-[rgba(255,215,0,0.5)] hover:text-[#ffd700] hover:shadow-[0_0_12px_rgba(255,215,0,0.2)]"
                         aria-label="About Bublik"
+                        on:click=move |_| {
+                            set_show_about.set(!show_about.get_untracked());
+                            set_show_me.set(false);
+                        }
                     >
                         "About"
                     </button>
-                    <div class="hidden group-hover:block animate-slide-up absolute bottom-[calc(100%+8px)] right-0 min-w-[300px] bg-[rgba(14,14,14,0.97)] backdrop-blur-[20px] border border-white/[0.08] rounded-xl z-[200] shadow-[0_-8px_32px_rgba(0,0,0,0.6)] before:content-[''] before:absolute before:top-full before:left-0 before:right-0 before:h-2.5 before:bg-transparent" style:z-index="1100">
+                    <div
+                        class="animate-slide-up absolute bottom-[calc(100%+8px)] right-0 min-w-[300px] bg-[rgba(14,14,14,0.97)] backdrop-blur-[20px] border border-white/[0.08] rounded-xl z-[200] shadow-[0_-8px_32px_rgba(0,0,0,0.6)]"
+                        style:display=move || if show_about.get() { "block" } else { "none" }
+                    >
                         <div class="px-5 py-4 text-[11px] leading-[1.7] text-white/55">
                             <p class="text-[15px] font-semibold text-cyan-400 mb-2 tracking-[2px] lowercase">"bublik"</p>
                             <p>"A frequency terrain audio generator built with Leptos + Rust WASM. \
