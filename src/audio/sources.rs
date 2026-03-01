@@ -15,6 +15,8 @@ fn log_err(context: &str, err: &JsValue) {
     );
 }
 
+type AudioProcessClosure = Closure<dyn FnMut(AudioProcessingEvent)>;
+
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum SourceKind {
     BrownNoise,
@@ -99,16 +101,24 @@ fn build_brainwave(
 
     carrier
         .connect_with_audio_node(&am_gain)
-        .map_err(|e| { log_err("carrier->am_gain", &e); e })?;
+        .inspect_err(|e| {
+            log_err("carrier->am_gain", e);
+        })?;
     am_gain
         .connect_with_audio_node(gain_node)
-        .map_err(|e| { log_err("am_gain->gain_node", &e); e })?;
+        .inspect_err(|e| {
+            log_err("am_gain->gain_node", e);
+        })?;
     modulator
         .connect_with_audio_node(&mod_gain)
-        .map_err(|e| { log_err("modulator->mod_gain", &e); e })?;
+        .inspect_err(|e| {
+            log_err("modulator->mod_gain", e);
+        })?;
     mod_gain
         .connect_with_audio_param(&am_gain.gain())
-        .map_err(|e| { log_err("mod_gain->am_gain.gain", &e); e })?;
+        .inspect_err(|e| {
+            log_err("mod_gain->am_gain.gain", e);
+        })?;
 
     carrier.start()?;
     modulator.start()?;
@@ -133,10 +143,14 @@ fn build_harmonics(
         let harmonic_gain = ctx.create_gain()?;
         harmonic_gain.gain().set_value(1.0 / i as f32);
         osc.connect_with_audio_node(&harmonic_gain)
-            .map_err(|e| { log_err(&format!("harmonic[{}]->gain", i), &e); e })?;
+            .inspect_err(|e| {
+                log_err(&format!("harmonic[{}]->gain", i), e);
+            })?;
         harmonic_gain
             .connect_with_audio_node(gain_node)
-            .map_err(|e| { log_err(&format!("harmonic_gain[{}]->gain_node", i), &e); e })?;
+            .inspect_err(|e| {
+                log_err(&format!("harmonic_gain[{}]->gain_node", i), e);
+            })?;
         osc.start()?;
         oscs.push(osc);
         gains.push(harmonic_gain);
@@ -150,17 +164,21 @@ fn build_noise<F>(
     ctx: &AudioContext,
     gain_node: &GainNode,
     fill_fn: F,
-) -> Result<(ScriptProcessorNode, Closure<dyn FnMut(AudioProcessingEvent)>), JsValue>
+) -> Result<(ScriptProcessorNode, AudioProcessClosure), JsValue>
 where
     F: FnMut(&mut [f32]) + 'static,
 {
     let processor = ctx.create_script_processor_with_buffer_size(4096)?;
     let fill = std::cell::RefCell::new(fill_fn);
+    let scratch = std::cell::RefCell::new(Vec::<f32>::new());
     let closure = Closure::wrap(Box::new(move |event: AudioProcessingEvent| {
         let Ok(output) = event.output_buffer() else { return };
         let length = output.length() as usize;
-        let mut buf = vec![0.0f32; length];
-        (fill.borrow_mut())(&mut buf);
+        let mut buf = scratch.borrow_mut();
+        if buf.len() != length {
+            buf.resize(length, 0.0);
+        }
+        (fill.borrow_mut())(&mut buf[..]);
         for ch in 0..output.number_of_channels() {
             let _ = output.copy_to_channel(&buf, ch as i32);
         }
@@ -168,7 +186,9 @@ where
     processor.set_onaudioprocess(Some(closure.as_ref().unchecked_ref()));
     processor
         .connect_with_audio_node(gain_node)
-        .map_err(|e| { log_err("noise->gain_node", &e); e })?;
+        .inspect_err(|e| {
+            log_err("noise->gain_node", e);
+        })?;
     Ok((processor, closure))
 }
 
@@ -185,7 +205,7 @@ pub struct SoundSource {
     extra_gains: Vec<GainNode>,
     binaural_beat: Option<BinauralBeat>,
     filter_chain: FilterChain,
-    _closures: Vec<Closure<dyn FnMut(AudioProcessingEvent)>>,
+    _closures: Vec<AudioProcessClosure>,
 }
 
 impl SoundSource {
@@ -204,13 +224,15 @@ impl SoundSource {
         let output_node = filter_chain.build(ctx, &gain_node)?;
         output_node
             .connect_with_audio_node(master)
-            .map_err(|e| { log_err("filter->master", &e); e })?;
+            .inspect_err(|e| {
+                log_err("filter->master", e);
+            })?;
 
         let mut oscillator = None;
         let mut noise_processor = None;
         let mut harmonic_oscs = Vec::new();
         let mut extra_gains: Vec<GainNode> = Vec::new();
-        let mut closures: Vec<Closure<dyn FnMut(AudioProcessingEvent)>> = Vec::new();
+        let mut closures: Vec<AudioProcessClosure> = Vec::new();
 
         let freq = match kind {
             SourceKind::Theta => 6.0,
@@ -330,7 +352,9 @@ impl SoundSource {
                 osc.set_type(OscillatorType::Sine);
                 osc.frequency().set_value(freq);
                 osc.connect_with_audio_node(&gain_node)
-                    .map_err(|e| { log_err("osc->gain_node", &e); e })?;
+                    .inspect_err(|e| {
+                        log_err("osc->gain_node", e);
+                    })?;
                 osc.start()?;
                 oscillator = Some(osc);
             }

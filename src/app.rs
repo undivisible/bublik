@@ -33,7 +33,7 @@ fn default_position(kind: SourceKind) -> (f32, f32) {
 
 #[component]
 pub fn App() -> impl IntoView {
-    let (is_playing, set_is_playing) = signal(false);
+    let (is_playing, set_is_playing) = signal(true);
     let (master_vol, set_master_vol) = signal(0.7f32);
     let (binaural_active, set_binaural_active) = signal(false);
     let (orbs, set_orbs) = signal(Vec::<OrbData>::new());
@@ -457,7 +457,7 @@ pub fn App() -> impl IntoView {
     };
 
     // Load saved session on startup
-    let load_preset_clone = load_preset.clone();
+    let load_preset_clone = load_preset;
     Effect::new(move |_| {
         if let Some(session) = persistence::load_session() {
             load_preset_clone(&session);
@@ -544,8 +544,19 @@ pub fn App() -> impl IntoView {
         save_session();
     });
 
+    let unlock_audio = move || {
+        engine.with_value(|cell| {
+            if let Some(ref mut eng) = *cell.borrow_mut() {
+                if eng.is_playing() && eng.context().state() == web_sys::AudioContextState::Suspended {
+                    let _ = eng.context().resume();
+                }
+            }
+        });
+    };
+
     // Mouse handlers for dragging orbs
     let on_pointer_down = move |ev: MouseEvent| {
+        unlock_audio();
         if let Some(canvas) = get_canvas_el() {
             let rect = canvas.get_bounding_client_rect();
             let px = ev.client_x() as f64 - rect.left();
@@ -654,7 +665,7 @@ pub fn App() -> impl IntoView {
                             let dx = px - orb.x;
                             let dy = py - orb.y;
                             let distance = (dx * dx + dy * dy).sqrt();
-                            let orbit_distance = orb.radius as f64 * 3.2;
+                            let orbit_distance = orb.radius * 3.2;
                             // Keep menu alive if within a large circular area around the orb
                             distance < orbit_distance * 1.5
                         });
@@ -724,6 +735,7 @@ pub fn App() -> impl IntoView {
 
     // Touch handlers
     let on_touch_start = move |ev: TouchEvent| {
+        unlock_audio();
         ev.prevent_default();
         if let Some(touch) = ev.touches().item(0) {
             if let Some(canvas) = get_canvas_el() {
@@ -868,6 +880,7 @@ pub fn App() -> impl IntoView {
             <canvas
                 node_ref=canvas_ref
                 class="absolute inset-0 w-full h-full block cursor-crosshair touch-none"
+                style:z-index="0"
                 on:mousedown=on_pointer_down
                 on:mousemove=on_pointer_move
                 on:mouseup=on_pointer_up
@@ -897,6 +910,7 @@ pub fn App() -> impl IntoView {
                             view! {
                                 <div
                                     class="absolute z-50 pointer-events-auto transition-all duration-150 ease-out"
+                                    style:z-index="50"
                                     style:left=format!("{}px", screen_x)
                                     style:top=format!("{}px", screen_y)
                                     on:mouseenter=move |_| set_is_hovering_menu.set(true)
