@@ -457,7 +457,7 @@ pub fn App() -> impl IntoView {
     };
 
     // Load saved session on startup
-    let load_preset_clone = load_preset.clone();
+    let load_preset_clone = load_preset;
     Effect::new(move |_| {
         if let Some(session) = persistence::load_session() {
             load_preset_clone(&session);
@@ -665,7 +665,7 @@ pub fn App() -> impl IntoView {
                             let dx = px - orb.x;
                             let dy = py - orb.y;
                             let distance = (dx * dx + dy * dy).sqrt();
-                            let orbit_distance = orb.radius as f64 * 3.2;
+                            let orbit_distance = orb.radius * 3.2;
                             // Keep menu alive if within a large circular area around the orb
                             distance < orbit_distance * 1.5
                         });

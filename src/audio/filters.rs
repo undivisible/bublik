@@ -51,7 +51,7 @@ impl Default for FilterSpec {
         Self {
             kind: FilterKind::Lowpass,
             frequency: 20000.0,
-            q: 0.7071,
+            q: std::f32::consts::FRAC_1_SQRT_2,
             enabled: true,
         }
     }
@@ -209,7 +209,7 @@ impl FilterChain {
         for node in &self.nodes {
             node.set_type(BiquadFilterType::Lowpass);
             node.frequency().set_value(20000.0);
-            node.q().set_value(0.7071);
+            node.q().set_value(std::f32::consts::FRAC_1_SQRT_2);
         }
     }
 

@@ -36,8 +36,6 @@ pub fn Dock(
 
     let preset_names: Vec<String> = presets.iter().map(|p| p.name.clone()).collect();
 
-    let (show_about, set_show_about) = signal(false);
-
     view! {
         <div
             class="fixed bottom-0 left-0 right-0 flex items-center gap-2.5 px-4 pt-2.5 pb-[calc(10px+env(safe-area-inset-bottom,0px))] bg-[rgba(10,10,10,0.94)] border-t border-white/[0.06] z-[100] flex-wrap justify-center"
@@ -54,8 +52,8 @@ pub fn Dock(
                     aria-label="Toggle play/pause (Space)"
                     title="Play/Pause (Space)"
                     on:click={
-                        let on_action = on_action.clone();
-                        move |_| on_action.run(DockAction::TogglePlay)
+                        let action_cb = on_action;
+                        move |_| action_cb.run(DockAction::TogglePlay)
                     }
                 >
                     {move || if is_playing.get() {
@@ -83,11 +81,11 @@ pub fn Dock(
                         title="Volume (Scroll)"
                         prop:value={move || (master_volume.get() * 100.0) as i32}
                         on:input={
-                            let on_volume = on_volume.clone();
+                            let volume_cb = on_volume;
                             move |ev| {
                                 use leptos::prelude::*;
                                 let val: f32 = event_target_value(&ev).parse().unwrap_or(70.0);
-                                on_volume.run(val / 100.0);
+                                volume_cb.run(val / 100.0);
                             }
                         }
                         class="vol-slider"
@@ -101,14 +99,14 @@ pub fn Dock(
                 {source_kinds
                     .into_iter()
                     .map(|(label, kind)| {
-                        let on_action = on_action.clone();
+                        let action_cb = on_action;
                         let aria = format!("Add {} source", label);
                         view! {
                             <button
                                 class="bg-white/[0.03] border border-white/[0.08] text-[#b0b0b0] px-2.5 py-[5px] rounded-2xl text-[11px] font-mono cursor-pointer transition-all duration-200 whitespace-nowrap hover:bg-white/[0.07] hover:border-white/20 hover:text-white hover:-translate-y-px hover:shadow-[0_0_12px_rgba(255,255,255,0.08)]"
                                 style:border-color={kind.color()}
                                 aria-label=aria
-                                on:click=move |_| on_action.run(DockAction::AddSource(kind))
+                                on:click=move |_| action_cb.run(DockAction::AddSource(kind))
                             >
                                 {label}
                             </button>
@@ -119,8 +117,8 @@ pub fn Dock(
                     class="bg-white/[0.03] border border-[rgba(255,80,80,0.25)] text-[rgba(255,80,80,0.6)] px-2.5 py-[5px] rounded-2xl text-[11px] font-mono cursor-pointer transition-all duration-200 whitespace-nowrap hover:border-[rgba(255,80,80,0.5)] hover:text-[#ff5050] hover:bg-[rgba(255,80,80,0.06)] hover:shadow-[0_0_12px_rgba(255,80,80,0.15)]"
                     aria-label="Remove last source"
                     on:click={
-                        let on_action = on_action.clone();
-                        move |_| on_action.run(DockAction::RemoveLast)
+                        let action_cb = on_action;
+                        move |_| action_cb.run(DockAction::RemoveLast)
                     }
                 >
                     "\u{2715} Remove"
@@ -138,8 +136,8 @@ pub fn Dock(
                     aria-label="Toggle binaural beats"
                     aria-pressed={move || binaural_active.get().to_string()}
                     on:click={
-                        let on_action = on_action.clone();
-                        move |_| on_action.run(DockAction::ToggleBinaural)
+                        let action_cb = on_action;
+                        move |_| action_cb.run(DockAction::ToggleBinaural)
                     }
                 >
                     {move || {
@@ -159,7 +157,7 @@ pub fn Dock(
                     .into_iter()
                     .enumerate()
                     .map(|(i, name)| {
-                        let on_action = on_action.clone();
+                        let action_cb = on_action;
                         let aria = format!("Load {} preset", name);
                         view! {
                             <button
@@ -169,7 +167,7 @@ pub fn Dock(
                                 style:color=move || if active_preset.get() == Some(i) { "#9370db" } else { "#b0b0b0" }
                                 style:box-shadow=move || if active_preset.get() == Some(i) { "0 0 14px rgba(147,112,219,0.3)" } else { "none" }
                                 aria-label=aria
-                                on:click=move |_| on_action.run(DockAction::LoadPreset(i))
+                                on:click=move |_| action_cb.run(DockAction::LoadPreset(i))
                             >
                                 {name}
                             </button>
@@ -211,7 +209,6 @@ pub fn Dock(
                     <button
                         class="bg-white/[0.03] border border-[rgba(255,215,0,0.25)] text-[#b0b0b0] px-2.5 py-[5px] rounded-2xl text-[11px] font-mono cursor-pointer transition-all duration-200 whitespace-nowrap hover:border-[rgba(255,215,0,0.5)] hover:text-[#ffd700] hover:shadow-[0_0_12px_rgba(255,215,0,0.2)]"
                         aria-label="About Bublik"
-                        on:click=move |_| set_show_about.set(!show_about.get_untracked())
                     >
                         "About"
                     </button>
