@@ -21,7 +21,7 @@ impl AudioEngine {
             ctx,
             master_gain,
             sources: Vec::new(),
-            playing: true,
+            playing: false,
         })
     }
 

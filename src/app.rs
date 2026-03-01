@@ -33,7 +33,7 @@ fn default_position(kind: SourceKind) -> (f32, f32) {
 
 #[component]
 pub fn App() -> impl IntoView {
-    let (is_playing, set_is_playing) = signal(true);
+    let (is_playing, set_is_playing) = signal(false);
     let (master_vol, set_master_vol) = signal(0.7f32);
     let (binaural_active, set_binaural_active) = signal(false);
     let (orbs, set_orbs) = signal(Vec::<OrbData>::new());
