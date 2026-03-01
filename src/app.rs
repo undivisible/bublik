@@ -876,10 +876,11 @@ pub fn App() -> impl IntoView {
     ];
 
     view! {
-        <div class="fixed inset-0 w-full h-full">
+        <div class="fixed inset-0 w-full h-full" style:z-index="0">
             <canvas
                 node_ref=canvas_ref
                 class="absolute inset-0 w-full h-full block cursor-crosshair touch-none"
+                style:z-index="0"
                 on:mousedown=on_pointer_down
                 on:mousemove=on_pointer_move
                 on:mouseup=on_pointer_up
@@ -909,6 +910,7 @@ pub fn App() -> impl IntoView {
                             view! {
                                 <div
                                     class="absolute z-50 pointer-events-auto transition-all duration-150 ease-out"
+                                    style:z-index="50"
                                     style:left=format!("{}px", screen_x)
                                     style:top=format!("{}px", screen_y)
                                     on:mouseenter=move |_| set_is_hovering_menu.set(true)
